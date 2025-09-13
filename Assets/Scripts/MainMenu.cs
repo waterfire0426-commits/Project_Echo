@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class MainMenu : MonoBehaviour
 {
@@ -14,17 +15,18 @@ public class MainMenu : MonoBehaviour
 
     public void OnClickNewGame()
     {
-        Debug.Log("½ÃÀÛÇÏ±â");
+        Debug.Log("ì‹œìž‘í•˜ê¸°");
+        SceneManager.LoadScene("MainScene");
     }
 
     public void OnClickLoad()
     {
-        Debug.Log("ºÒ·¯¿À±â");
+        Debug.Log("ë¶ˆëŸ¬ì˜¤ê¸°ê¸°");
     }
 
     public void OnClickCredits()
     {
-        Debug.Log("Á¦ÀÛÁø");
+        Debug.Log("ì œìž‘ì§„");
     }
 
     public void OnClickQuit()
