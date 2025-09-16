@@ -1,162 +1,90 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(CharacterController))]
 public class PlayerMove : MonoBehaviour
 {
     CharacterController cc;
+    public Camera cam;                       // 비우면 자동 할당
 
-    [Header("Gravity & Jump")]
-    public float gravity = -20f;
-    float yVelocity = 0f;
-    public float jumpPower = 10f;
-    public bool isJumping = false;
-
-    [Header("Speeds")]
+    [Header("Speed")]
     public float walkSpeed = 7f;
     public float sprintSpeed = 10f;
-    public float crouchSpeed = 3.5f;
 
-    // 스프린트 상태 캐시
-    bool isSprintingNow = false;
+    [Header("Jump & Gravity")]
+    public float jumpPower = 10f;
+    public float gravity = -18f;
+    public float groundStick = -0.5f;       // 지면에 살짝 붙이는 값
 
     [Header("Stamina")]
     public float staminaMax = 100f;
     public float stamina = 100f;
     public float sprintCostPerSec = 20f;
     public float recoverPerSec = 12f;
-    public float minToSprint = 10f;   // 이 값 이상 회복돼야 다시 달리기 허용
-    public bool canSprint = true;
+    public float minToSprint = 10f;         // 이 이상 회복돼야 다시 달리기 허용 (나중에 바 만들때 다시 점검)
 
-    // 안 써도 문제 없음
-    public System.Action<float, float> OnStaminaChanged; // (current, max)
-    public System.Action<bool> OnSprintStateChanged;     // true=스프린트 시작, false=종료
+    [Header("State (read-only)")]
+    public bool isSprinting { get; private set; }
+    public bool isGrounded  { get; private set; }
 
-    [Header("Crouch")]
-    public KeyCode crouchKey = KeyCode.LeftControl;
-    public bool crouchToggle = false; // true=토글, false=누르는 동안만
-    bool isCrouching = false;
+    float yVel = 0f;
 
-    [Header("Stealth Hooks")]
-    public float noiseLevel { get; private set; } = 0f;
-    public float walkNoise = 0.3f;
-    public float sprintNoise = 0.8f;
-    public float crouchNoise = 0.1f;
-
-    [Header("Footstep")]
-    public AudioSource footSrc;             
-    public AudioClip stepWalk, stepSprint, stepCrouch;
-    public float stepDistWalk = 2.0f;         // 발소리 간격(거리 기반)
-    public float stepDistSprint = 1.3f;
-    public float stepDistCrouch = 2.4f;
-    float stepAccum = 0f;
-
-    void Start()
+    void Awake()
     {
         cc = GetComponent<CharacterController>();
+        if (!cam) cam = Camera.main;
         stamina = Mathf.Clamp(stamina, 0f, staminaMax);
     }
 
     void Update()
     {
-        // ---- 입력 ----
-        float h = Input.GetAxis("Horizontal");
-        float v = Input.GetAxis("Vertical");
-
-        // 카메라 기준 '수평' 이동 벡터 (pitch 영향 제거)
-        Vector3 camF = Camera.main.transform.forward; camF.y = 0f; camF.Normalize();
-        Vector3 camR = Camera.main.transform.right;  camR.y = 0f; camR.Normalize();
-        Vector3 moveXZ = (camF * v + camR * h).normalized;
-
-        // 지상 체크
-        bool grounded = cc.isGrounded;
-
-        // 점프 (앉은 상태에선 점프 X)
-        if (Input.GetButtonDown("Jump") && grounded && !isCrouching)
-        {
-            yVelocity = jumpPower;
-            isJumping = true;
-        }
-
-        // 착지 처리
-        if (grounded && yVelocity < 0f)
-        {
-            yVelocity = -2f;   // 지면에 살짝 붙여두기
-            isJumping = false;
-        }
-
-        // 중력
-        yVelocity += gravity * Time.deltaTime;
-
-        // ---- 앉기 ----
-        if (crouchToggle)
-        {
-            if (Input.GetKeyDown(crouchKey)) isCrouching = !isCrouching;
-        }
-        else
-        {
-            isCrouching = Input.GetKey(crouchKey);
-        }
-
-        // ---- 스프린트 ----
+        // --- 입력 ---
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
         bool sprintHeld = Input.GetKey(KeyCode.LeftShift);
+
+        // --- 이동 방향(카메라 기준) ---
+        Vector3 f = cam.transform.forward; f.y = 0f; f.Normalize();
+        Vector3 r = cam.transform.right;   r.y = 0f; r.Normalize();
+        Vector3 moveXZ = (f * v + r * h);
+        if (moveXZ.sqrMagnitude > 1f) moveXZ.Normalize();
+
+        // --- 지상/중력/점프 ---
+        isGrounded = cc.isGrounded;
+        if (isGrounded && yVel < 0f) yVel = groundStick;
+        if (isGrounded && Input.GetButtonDown("Jump")) yVel = jumpPower;
+        yVel += gravity * Time.deltaTime;
+
+        // --- 스프린트 조건 ---
         bool wantMove = moveXZ.sqrMagnitude > 0.0001f;
+        bool canSprintNow = sprintHeld && wantMove && isGrounded && stamina > 0f && stamina >= (isSprinting ? 0f : minToSprint);
+        isSprinting = canSprintNow;
 
-        // 입력 + 허용 + 스태미나 + 이동의지 + (앉기 중 X)
-        bool canSprintNow = sprintHeld && canSprint && stamina > 0f && wantMove && !isCrouching;
+        // --- 속도 선택 ---
+        float speed = isSprinting ? sprintSpeed : walkSpeed;
 
-        // 상태 변화시에만 이벤트
-        bool prevSprint = isSprintingNow;
-        isSprintingNow = canSprintNow;
-        if (isSprintingNow != prevSprint)
-            OnSprintStateChanged?.Invoke(isSprintingNow);
+        // --- 경사면 투영(한 줄 핵심) ---
+        Vector3 groundNormal = Vector3.up;
+        if (Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, out RaycastHit gh, 1.2f))
+            groundNormal = gh.normal;
+        Vector3 planar = Vector3.ProjectOnPlane(moveXZ * speed, groundNormal);
 
-        // 최종 속도 선택(즉시 전환)
-        float speed = isCrouching ? crouchSpeed : (isSprintingNow ? sprintSpeed : walkSpeed);
+        // --- 입력 없고 지상일 때 즉시 정지(미끄러짐 최소화) ---
+        if (isGrounded && !wantMove) planar = Vector3.zero;
 
-        // 이동
-        Vector3 velocity = moveXZ * speed;
-        velocity.y = yVelocity;
-        cc.Move(velocity * Time.deltaTime);
+        // --- 최종 이동 ---
+        Vector3 vel = new Vector3(planar.x, yVel, planar.z);
+        cc.Move(vel * Time.deltaTime);
 
-        // ---- 스태미나 소모/회복 ----
-        if (isSprintingNow)
+        // --- 스태미나 ---
+        if (isSprinting)
         {
             stamina -= sprintCostPerSec * Time.deltaTime;
-            if (stamina <= 0f)
-            {
-                stamina = 0f;
-                canSprint = false;
-                if (isSprintingNow) { isSprintingNow = false; OnSprintStateChanged?.Invoke(false); }
-            }
+            if (stamina < 0f) stamina = 0f;
         }
         else
         {
             stamina += recoverPerSec * Time.deltaTime;
-            if (stamina >= staminaMax) stamina = staminaMax;
-            if (!canSprint && stamina >= minToSprint) canSprint = true;
-        }
-        OnStaminaChanged?.Invoke(stamina, staminaMax);
-
-        // ---- 소음 레벨 산출 ----
-        Vector3 planarVel = cc.velocity; planarVel.y = 0f;
-        float speedMag = planarVel.magnitude;
-        bool moving = speedMag > 0.1f;
-
-        if (!moving)                 noiseLevel = 0f;
-        else if (isCrouching)        noiseLevel = crouchNoise;
-        else if (isSprintingNow)     noiseLevel = sprintNoise;
-        else                         noiseLevel = walkNoise;
-
-        // ---- 발소리 ----
-        stepAccum += speedMag * Time.deltaTime;
-        float stepDist = isCrouching ? stepDistCrouch : (isSprintingNow ? stepDistSprint : stepDistWalk);
-
-        if (moving && grounded && stepAccum >= stepDist)
-        {
-            stepAccum = 0f;
-            var clip = isCrouching ? stepCrouch : (isSprintingNow ? stepSprint : stepWalk);
-            if (clip && footSrc) footSrc.PlayOneShot(clip);
+            if (stamina > staminaMax) stamina = staminaMax;
         }
     }
 }
