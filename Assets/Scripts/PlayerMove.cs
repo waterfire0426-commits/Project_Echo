@@ -1,7 +1,7 @@
 using UnityEngine;
 
 [RequireComponent(typeof(CharacterController))]
-public class PlayerMove : MonoBehaviour
+public class PlayerMove : MonoBehaviour, ISuitReceiver
 {
     CharacterController cc;
     public Camera cam;                       // 비우면 자동 할당
@@ -20,11 +20,25 @@ public class PlayerMove : MonoBehaviour
     public float stamina = 100f;
     public float sprintCostPerSec = 20f;
     public float recoverPerSec = 12f;
-    public float minToSprint = 10f;         // 이 이상 회복돼야 다시 달리기 허용 (나중에 바 만들때 다시 점검)
+    public float minToSprint = 10f;         // 이 이상 회복돼야 다시 달리기 허용
+
+    [Header("Suit Multipliers (착용 시 적용 배수)")]
+    [Tooltip("걷기 속도 배수 (예: 0.8 = 20% 느려짐)")]
+    public float suitWalkMul = 0.8f;
+    [Tooltip("달리기 속도 배수 (예: 0.75 = 25% 느려짐)")]
+    public float suitSprintMul = 0.75f;
+    [Tooltip("점프력 배수 (예: 0.85 = 15% 낮아짐)")]
+    public float suitJumpMul = 0.85f;
+    [Tooltip("스태미나 소모 배수 (예: 1.15 = 15% 더 많이 듦)")]
+    public float suitSprintCostMul = 1.0f;
 
     [Header("State (read-only)")]
     public bool isSprinting { get; private set; }
     public bool isGrounded  { get; private set; }
+    public bool IsSuited    { get; private set; }   // ISuitReceiver
+
+    // 원본 값을 보관해서 착용/해제 시 복구
+    float baseWalk, baseSprint, baseJump, baseSprintCost;
 
     float yVel = 0f;
 
@@ -33,6 +47,12 @@ public class PlayerMove : MonoBehaviour
         cc = GetComponent<CharacterController>();
         if (!cam) cam = Camera.main;
         stamina = Mathf.Clamp(stamina, 0f, staminaMax);
+
+        // 원본 저장
+        baseWalk       = walkSpeed;
+        baseSprint     = sprintSpeed;
+        baseJump       = jumpPower;
+        baseSprintCost = sprintCostPerSec;
     }
 
     void Update()
@@ -62,13 +82,13 @@ public class PlayerMove : MonoBehaviour
         // --- 속도 선택 ---
         float speed = isSprinting ? sprintSpeed : walkSpeed;
 
-        // --- 경사면 투영(한 줄 핵심) ---
+        // --- 경사면 투영 ---
         Vector3 groundNormal = Vector3.up;
         if (Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, out RaycastHit gh, 1.2f))
             groundNormal = gh.normal;
         Vector3 planar = Vector3.ProjectOnPlane(moveXZ * speed, groundNormal);
 
-        // --- 입력 없고 지상일 때 즉시 정지(미끄러짐 최소화) ---
+        // --- 입력 없고 지상일 때 즉시 정지 ---
         if (isGrounded && !wantMove) planar = Vector3.zero;
 
         // --- 최종 이동 ---
@@ -78,13 +98,37 @@ public class PlayerMove : MonoBehaviour
         // --- 스태미나 ---
         if (isSprinting)
         {
-            stamina -= sprintCostPerSec * Time.deltaTime;
+            // 착용 시 suitSprintCostMul 반영
+            float cost = sprintCostPerSec * (IsSuited ? suitSprintCostMul : 1f);
+            stamina -= cost * Time.deltaTime;
             if (stamina < 0f) stamina = 0f;
         }
         else
         {
             stamina += recoverPerSec * Time.deltaTime;
             if (stamina > staminaMax) stamina = staminaMax;
+        }
+    }
+
+    // ISuitReceiver 구현
+    public void ApplySuit(bool suited)
+    {
+        IsSuited = suited;
+        if (suited)
+        {
+            walkSpeed       = baseWalk   * suitWalkMul;
+            sprintSpeed     = baseSprint * suitSprintMul;
+            jumpPower       = baseJump   * suitJumpMul;
+            sprintCostPerSec= baseSprintCost * suitSprintCostMul;
+            Debug.Log("[Suit] 착용 적용: 이동이 묵직/느려짐");
+        }
+        else
+        {
+            walkSpeed       = baseWalk;
+            sprintSpeed     = baseSprint;
+            jumpPower       = baseJump;
+            sprintCostPerSec= baseSprintCost;
+            Debug.Log("[Suit] 해제 적용: 기본 이동 복구");
         }
     }
 }
