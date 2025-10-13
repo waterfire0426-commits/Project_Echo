@@ -8,12 +8,12 @@ public class Contamination : MonoBehaviour
     public float[] stageThresholds = { 0, 10, 25, 50, 75, 100 }; // 0,1,2,3,4,5
 
     [Header("Natural Change (optional)")]
-    public float passiveIncreasePerSec = 0f;   // 기본 증가량 (맵 전체 오염 등)
-    public float passiveDecreasePerSec = 0f;   // 방호복/세이프존 회복 등
+    public float passiveIncreasePerSec = 0f;
+    public float passiveDecreasePerSec = 0f;
 
     [Header("Events")]
-    public UnityEvent<int> onStageChanged;     // 파라미터: 새 단계
-    public UnityEvent onDeath;                 // 5단계 도달 시
+    public UnityEvent<int> onStageChanged;
+    public UnityEvent onDeath;
 
     public int Stage { get; private set; } = 0;
 
@@ -25,7 +25,7 @@ public class Contamination : MonoBehaviour
 
     public void Add(float amount)
     {
-        float prevStage = Stage;
+        int prevStage = Stage;
         value = Mathf.Clamp(value + amount, 0f, 100f);
         UpdateStage();
 
@@ -45,6 +45,23 @@ public class Contamination : MonoBehaviour
         for (int i = 0; i < stageThresholds.Length; i++)
             if (value >= stageThresholds[i]) s = i;
         Stage = Mathf.Clamp(s, 0, 5);
+    }
+
+    // ✅ 원하는 단계로 바로 끌어올리기(예: 4단계)
+    public void RaiseToStage(int target)
+    {
+        target = Mathf.Clamp(target, 0, 5);
+        int idx = Mathf.Clamp(target, 0, stageThresholds.Length - 1);
+        float targetValue = stageThresholds[idx];
+
+        if (value < targetValue)
+        {
+            value = targetValue;
+            int prevStage = Stage;
+            UpdateStage();
+            if (Stage != prevStage) onStageChanged?.Invoke(Stage);
+            if (Stage >= 5) onDeath?.Invoke();
+        }
     }
 
     // 편의 API

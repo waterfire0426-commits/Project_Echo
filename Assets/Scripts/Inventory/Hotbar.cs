@@ -21,7 +21,12 @@ public class Hotbar : MonoBehaviour
 
     // 선택/휠
     public void Select(int idx) { selected = Mathf.Clamp(idx, 0, size - 1); Changed(); }
-    public void Cycle(int dir)  { Select((selected + (dir > 0 ? 1 : -1) + size) % size); }
+    public void Cycle(int dir)
+    {
+        if (size <= 0) return; // 추가
+        selected = (selected + (dir > 0 ? 1 : -1) + size) % size;
+        Changed();
+    }
 
     // 추가
     public bool Add(ItemDef def, int amount = 1) {

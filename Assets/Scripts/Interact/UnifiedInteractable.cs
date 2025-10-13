@@ -4,35 +4,50 @@ using System.Collections;
 
 public class UnifiedInteractable : MonoBehaviour, IInteractable
 {
-    public enum Kind { FuelPickup, Generator, PowerSwitch, HazmatEquip, Door, EggShell, None }
+    public enum Kind { FuelPickup, Generator, PowerSwitch, HazmatEquip, Door, EggShell, DataTerminal, None }
 
     [Header("Object Type")]
     public Kind kind = Kind.None;
 
     [Header("Generator / PowerSwitch State")]
-    public bool hasFuel;          
-    public bool isRunning;        
-    public bool facilityPowerOn;  
+    public bool hasFuel;
+    public bool isRunning;
+    public bool facilityPowerOn;
 
     [Header("Pickup (FuelPickup 전용)")]
-    public ItemDef pickupItem;    
-    public int pickupAmount = 1;  
+    public ItemDef pickupItem;
+    public int pickupAmount = 1;
 
     [Tooltip("If this is a PowerSwitch, assign the Generator object here")]
     public UnifiedInteractable generatorRef;
 
     [Header("Optional Events")]
-    public UnityEvent onFueled;           
-    public UnityEvent onGeneratorOn;      
-    public UnityEvent onFacilityPowerOn;  
+    public UnityEvent onFueled;
+    public UnityEvent onGeneratorOn;
+    public UnityEvent onFacilityPowerOn;
+
+    [Header("Integration")]
+    public Transform uiRootOverride;           // 미니게임 프리팹 붙일 캔버스(없으면 자동 탐색)
+    public UnityEvent onMiniGameOpened;        // 미니게임 열릴 때(커서/입력 잠금 등)
+    public UnityEvent onMiniGameClosed;        // 미니게임 닫힐 때(복구)
+
 
     // === Door 관련 ===
     [Header("Door Settings (Door 전용)")]
-    public Transform doorHinge;           // 회전 중심
-    public float openAngle = 90f;         // 열릴 각도
-    public float openSpeed = 3f;          // 열리는 속도
+    public Transform doorHinge;
+    public float openAngle = 90f;
+    public float openSpeed = 3f;
     private bool isOpen = false;
     private Coroutine doorRoutine;
+
+    // === DataTerminal(미니게임: 게이지 완료 시점 트리거) ===
+    [Header("Data Terminal (MiniGame)")]
+    public GameObject miniGamePrefab;          // UI팀 미니게임 프리팹
+    [Tooltip("게이지 진행률 브로드캐스트(0~1). 필요 없으면 비워두기")]
+    public UnityEvent<float> onMiniGameProgress; // 선택: 진행률 UI 등 연결
+    [Tooltip("게이지 100% 완료 시 호출 (여기에 회상 재생 / 오염 4단계 연결)")]
+    public UnityEvent onMiniGameFinished;        // ✅ 핵심: 완료 시점 기준
+    private bool miniGameFinished = false;
 
     // === IInteractable ===
     public void OnFocus() { }
@@ -48,6 +63,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             case Kind.HazmatEquip:  DoHazmatEquip(interactor);  break;
             case Kind.Door:         DoDoor(interactor);         break;
             case Kind.EggShell:     DoEggShell(interactor);     break;
+            case Kind.DataTerminal: DoDataTerminal(interactor); break;
             default:
                 Debug.Log("[Interact] 타입이 설정되지 않음");
                 break;
@@ -63,6 +79,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         if (!inv) { Debug.LogWarning("[연료통] PlayerInventory 없음"); return; }
 
         inv.hasFuel = true;
+
         var hotbar = interactor.GetComponentInChildren<Hotbar>();
         if (hotbar && pickupItem) hotbar.Add(pickupItem, pickupAmount);
 
@@ -100,15 +117,14 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             Debug.Log("[발전기] 가동 시작");
             onGeneratorOn?.Invoke();
 
-            // ✅ 오염도 트리거
-            var contam = FindObjectOfType<Contamination>();
+            var contam = FindFirstObjectByType<Contamination>();
+
             if (contam != null)
             {
                 contam.Add(10f); // 오염도 1단계 시작
                 Debug.Log("[오염] 발전기 가동 → 오염도 상승 시작");
             }
 
-            // ✅ 다음 목표 안내
             Quest.Notify("next_task_power_switch");
             Debug.Log("[목표] 전력 스위치실로 이동하세요");
         }
@@ -153,37 +169,36 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
     }
 
     // -------------------------------
-    // 문 열기 (회전형)
+    // 문 열기(회전형)
     // -------------------------------
     void DoDoor(GameObject interactor)
-{
-    // doorHinge가 비어 있으면 자기 자신(Door 오브젝트)을 회전 대상으로 사용
-    Transform target = doorHinge ? doorHinge : transform;
-
-    if (doorRoutine != null) StopCoroutine(doorRoutine);
-    doorRoutine = StartCoroutine(ToggleDoor(target));
-}
-
-IEnumerator ToggleDoor(Transform target)
-{
-    float t = 0f;
-    Quaternion startRot = target.localRotation;
-    Quaternion targetRot = isOpen ?
-        Quaternion.Euler(0f, 0f, 0f) :
-        Quaternion.Euler(0f, openAngle, 0f);
-
-    isOpen = !isOpen;
-
-    while (t < 1f)
     {
-        t += Time.deltaTime * openSpeed;
-        target.localRotation = Quaternion.Slerp(startRot, targetRot, t);
-        yield return null;
+        Transform target = doorHinge ? doorHinge : transform;
+
+        if (doorRoutine != null) StopCoroutine(doorRoutine);
+        doorRoutine = StartCoroutine(ToggleDoor(target));
     }
 
-    doorRoutine = null;
-    Debug.Log(isOpen ? "[문] 열림" : "[문] 닫힘");
-}
+    IEnumerator ToggleDoor(Transform target)
+    {
+        float t = 0f;
+        Quaternion startRot = target.localRotation;
+        Quaternion targetRot = isOpen ?
+            Quaternion.Euler(0f, 0f, 0f) :
+            Quaternion.Euler(0f, openAngle, 0f);
+
+        isOpen = !isOpen;
+
+        while (t < 1f)
+        {
+            t += Time.deltaTime * openSpeed;
+            target.localRotation = Quaternion.Slerp(startRot, targetRot, t);
+            yield return null;
+        }
+
+        doorRoutine = null;
+        Debug.Log(isOpen ? "[문] 열림" : "[문] 닫힘");
+    }
 
     // -------------------------------
     // 계란껍질 오브젝트
@@ -197,15 +212,12 @@ IEnumerator ToggleDoor(Transform target)
             return;
         }
 
-        // 1) 식초 아이템이 선택되어 있는지 확인
         if (hotbar.SelectedIs("vinegar"))
         {
-            // 2) 식초 1개 소모
             if (hotbar.RemoveFromSelected(1))
             {
                 Debug.Log("[계란껍질] 식초 사용 → 제거됨");
                 Quest.Notify("eggshell_removed");
-                // 3) 오브젝트 제거
                 Destroy(gameObject);
             }
             else
@@ -218,4 +230,53 @@ IEnumerator ToggleDoor(Transform target)
             Debug.Log("[계란껍질] 식초를 선택한 상태에서 E키를 눌러야 합니다!");
         }
     }
+
+    // -------------------------------
+    // 데이터 터미널(게이지 완료 기준)
+    // -------------------------------
+    void DoDataTerminal(GameObject interactor)
+    {
+        if (miniGameFinished) { Debug.Log("[단말] 이미 다운로드 완료"); return; }
+        if (!miniGamePrefab) { Debug.LogWarning("[단말] miniGamePrefab 미지정"); return; }
+
+        // 1) 프리팹 붙일 부모 찾기: 인스펙터 지정 > 'UIRoot' 태그 > 월드 루트
+        Transform parent = uiRootOverride;
+        if (!parent)
+        {
+            var uiGo = GameObject.FindWithTag("UIRoot"); // Canvas에 'UIRoot' 태그 달아두면 편함
+            if (uiGo) parent = uiGo.transform;
+        }
+
+        GameObject inst = parent ? Instantiate(miniGamePrefab, parent) : Instantiate(miniGamePrefab);
+        if (!parent) Debug.LogWarning("[단말] uiRootOverride/태그가 없어 월드에 생성했습니다.");
+
+        var bridge = inst.GetComponent<MiniGameBridge>();
+        if (!bridge) bridge = inst.AddComponent<MiniGameBridge>();
+
+        // 🔒 입력/커서 잠금은 이벤트로 외부 처리(컨트롤러 disable 등 연결)
+        onMiniGameOpened?.Invoke();
+
+        // 2) 진행률 브로드캐스트(선택)
+        bridge.OnProgress += p => { onMiniGameProgress?.Invoke(p); };
+
+        // 3) 완료(게이지 100%) 시 후처리
+        bridge.OnFinished += () =>
+        {
+            if (miniGameFinished) return;
+            miniGameFinished = true;
+
+            Quest.Notify("data_downloaded");
+            onMiniGameFinished?.Invoke(); // 여기다 타임라인 Play, 오염 4단계 연결해 두면 됨
+            onMiniGameClosed?.Invoke();   // 🔓 입력/커서 복구(외부에서 연결)
+            Debug.Log("[단말] 데이터 다운로드 완료(게이지 100%)");
+        };
+
+        // 4) 창 닫힘(취소 등) 시 복구만
+        bridge.OnClosed += () =>
+        {
+            onMiniGameClosed?.Invoke();   // 🔓 복구
+            Debug.Log("[단말] 미니게임 종료");
+        };
+    }
+
 }

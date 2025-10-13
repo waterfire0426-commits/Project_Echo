@@ -30,7 +30,7 @@ public class ContamEffects : MonoBehaviour
 
     void Awake()
     {
-        if (!contamination) contamination = FindObjectOfType<Contamination>();
+        if (!contamination) contamination = FindFirstObjectByType<Contamination>();
         if (contamination) contamination.onStageChanged.AddListener(OnStageChanged);
         sfxTimer = Random.Range(sfxMinInterval, sfxMaxInterval);
     }
