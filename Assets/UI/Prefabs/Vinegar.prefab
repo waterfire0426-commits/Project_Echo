@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &8017553869892796661
+--- !u!1 &8516036185395965917
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,48 +8,48 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 5632212200138212203}
-  - component: {fileID: 1099436339816432115}
-  - component: {fileID: 2619334330085680649}
-  - component: {fileID: 334234850836945965}
-  - component: {fileID: 1942336525548086270}
-  m_Layer: 3
-  m_Name: FuelCan
+  - component: {fileID: 7930243816204530420}
+  - component: {fileID: 104932460687627440}
+  - component: {fileID: 6712762132702970011}
+  - component: {fileID: 3097212493857003425}
+  - component: {fileID: 7179539604691561804}
+  m_Layer: 0
+  m_Name: Vinegar
   m_TagString: Untagged
   m_Icon: {fileID: -1412012063857583412, guid: 0000000000000000d000000000000000, type: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &5632212200138212203
+--- !u!4 &7930243816204530420
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8017553869892796661}
+  m_GameObject: {fileID: 8516036185395965917}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 3.0882075, y: 8.270508, z: -7.7338147}
-  m_LocalScale: {x: 0.82322, y: 0.82322, z: 0.39244545}
+  m_LocalPosition: {x: 4.67, y: 0.83, z: 0.6131598}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &1099436339816432115
+--- !u!33 &104932460687627440
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8017553869892796661}
+  m_GameObject: {fileID: 8516036185395965917}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!23 &2619334330085680649
+--- !u!23 &6712762132702970011
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8017553869892796661}
+  m_GameObject: {fileID: 8516036185395965917}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -88,13 +88,13 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &334234850836945965
+--- !u!65 &3097212493857003425
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8017553869892796661}
+  m_GameObject: {fileID: 8516036185395965917}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -109,13 +109,13 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &1942336525548086270
+--- !u!114 &7179539604691561804
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8017553869892796661}
+  m_GameObject: {fileID: 8516036185395965917}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 26ca1df3559404b97a4231393fb20038, type: 3}
@@ -125,7 +125,7 @@ MonoBehaviour:
   hasFuel: 0
   isRunning: 0
   facilityPowerOn: 0
-  pickupItem: {fileID: 11400000, guid: 9b58aae5f488f44b1b74bc70ea3e545f, type: 2}
+  pickupItem: {fileID: 11400000, guid: edff651a0ff05492da8c416d257b225b, type: 2}
   pickupAmount: 1
   generatorRef: {fileID: 0}
   onFueled:

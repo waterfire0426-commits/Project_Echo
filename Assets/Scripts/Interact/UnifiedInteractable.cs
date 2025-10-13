@@ -47,7 +47,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             case Kind.PowerSwitch:  DoPowerSwitch(interactor);  break;
             case Kind.HazmatEquip:  DoHazmatEquip(interactor);  break;
             case Kind.Door:         DoDoor(interactor);         break;
-            case Kind.EggShell: DoEggShell(interactor); break;
+            case Kind.EggShell:     DoEggShell(interactor);     break;
             default:
                 Debug.Log("[Interact] 타입이 설정되지 않음");
                 break;
@@ -99,6 +99,18 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             Quest.Notify("generator_on");
             Debug.Log("[발전기] 가동 시작");
             onGeneratorOn?.Invoke();
+
+            // ✅ 오염도 트리거
+            var contam = FindObjectOfType<Contamination>();
+            if (contam != null)
+            {
+                contam.Add(10f); // 오염도 1단계 시작
+                Debug.Log("[오염] 발전기 가동 → 오염도 상승 시작");
+            }
+
+            // ✅ 다음 목표 안내
+            Quest.Notify("next_task_power_switch");
+            Debug.Log("[목표] 전력 스위치실로 이동하세요");
         }
         else
         {
@@ -144,67 +156,66 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
     // 문 열기 (회전형)
     // -------------------------------
     void DoDoor(GameObject interactor)
+{
+    // doorHinge가 비어 있으면 자기 자신(Door 오브젝트)을 회전 대상으로 사용
+    Transform target = doorHinge ? doorHinge : transform;
+
+    if (doorRoutine != null) StopCoroutine(doorRoutine);
+    doorRoutine = StartCoroutine(ToggleDoor(target));
+}
+
+IEnumerator ToggleDoor(Transform target)
+{
+    float t = 0f;
+    Quaternion startRot = target.localRotation;
+    Quaternion targetRot = isOpen ?
+        Quaternion.Euler(0f, 0f, 0f) :
+        Quaternion.Euler(0f, openAngle, 0f);
+
+    isOpen = !isOpen;
+
+    while (t < 1f)
     {
-        if (!doorHinge)
+        t += Time.deltaTime * openSpeed;
+        target.localRotation = Quaternion.Slerp(startRot, targetRot, t);
+        yield return null;
+    }
+
+    doorRoutine = null;
+    Debug.Log(isOpen ? "[문] 열림" : "[문] 닫힘");
+}
+
+    // -------------------------------
+    // 계란껍질 오브젝트
+    // -------------------------------
+    void DoEggShell(GameObject interactor)
+    {
+        var hotbar = interactor.GetComponentInChildren<Hotbar>();
+        if (!hotbar)
         {
-            Debug.LogWarning("[문] doorHinge가 연결되지 않았습니다!");
+            Debug.LogWarning("[계란껍질] Hotbar 없음");
             return;
         }
 
-        if (doorRoutine != null) StopCoroutine(doorRoutine);
-        doorRoutine = StartCoroutine(ToggleDoor());
-    }
-
-    IEnumerator ToggleDoor()
-    {
-        float t = 0f;
-        Quaternion startRot = doorHinge.localRotation;
-        Quaternion targetRot = isOpen ?
-            Quaternion.Euler(0f, 0f, 0f) :
-            Quaternion.Euler(0f, openAngle, 0f);
-
-        isOpen = !isOpen;
-
-        while (t < 1f)
+        // 1) 식초 아이템이 선택되어 있는지 확인
+        if (hotbar.SelectedIs("vinegar"))
         {
-            t += Time.deltaTime * openSpeed;
-            doorHinge.localRotation = Quaternion.Slerp(startRot, targetRot, t);
-            yield return null;
-        }
-
-        doorRoutine = null;
-        Debug.Log(isOpen ? "[문] 열림" : "[문] 닫힘");
-    }
-
-    void DoEggShell(GameObject interactor)
-{
-    var hotbar = interactor.GetComponentInChildren<Hotbar>();
-    if (!hotbar)
-    {
-        Debug.LogWarning("[계란껍질] Hotbar 없음");
-        return;
-    }
-
-    // 1) 식초 아이템이 선택되어 있는지 확인
-    if (hotbar.SelectedIs("vinegar"))
-    {
-        // 2) 식초 1개 소모
-        if (hotbar.RemoveFromSelected(1))
-        {
-            Debug.Log("[계란껍질] 식초 사용 → 제거됨");
-            Quest.Notify("eggshell_removed");
-            // 3) 오브젝트 제거
-            Destroy(gameObject);
+            // 2) 식초 1개 소모
+            if (hotbar.RemoveFromSelected(1))
+            {
+                Debug.Log("[계란껍질] 식초 사용 → 제거됨");
+                Quest.Notify("eggshell_removed");
+                // 3) 오브젝트 제거
+                Destroy(gameObject);
+            }
+            else
+            {
+                Debug.Log("[계란껍질] 식초가 없습니다!");
+            }
         }
         else
         {
-            Debug.Log("[계란껍질] 식초가 없습니다!");
+            Debug.Log("[계란껍질] 식초를 선택한 상태에서 E키를 눌러야 합니다!");
         }
     }
-    else
-    {
-        Debug.Log("[계란껍질] 식초를 선택한 상태에서 E키를 눌러야 합니다!");
-    }
-}
-
 }

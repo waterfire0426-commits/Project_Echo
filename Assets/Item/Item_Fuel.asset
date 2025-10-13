@@ -16,4 +16,4 @@ MonoBehaviour:
   displayName: "\uC5F0\uB8CC\uD1B5"
   icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
   stackable: 1
-  maxStack: 99
+  maxStack: 10
