@@ -124,7 +124,7 @@ public void ApplySuit(bool suited)
         Debug.Log("[Suit] 착용 적용: 이동이 묵직/느려짐");
 
         // ▶ 착용 '처음'일 때만 퀘스트 완료 알림
-        if (!wasSuited) Quest.Notify("hazmat_on");
+        if (!wasSuited) Quest_YH.Notify("hazmat_on");
     }
     else
     {

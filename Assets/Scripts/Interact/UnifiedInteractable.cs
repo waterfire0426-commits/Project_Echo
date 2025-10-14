@@ -83,7 +83,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         var hotbar = interactor.GetComponentInChildren<Hotbar>();
         if (hotbar && pickupItem) hotbar.Add(pickupItem, pickupAmount);
 
-        Quest.Notify("fuel_pickup");
+        Quest_YH.Notify("fuel_pickup");
         Debug.Log("[목표] 연료통 획득 → 발전기에 주입하세요");
         Destroy(gameObject);
     }
@@ -99,7 +99,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             if (hotbar && hotbar.SelectedIs("fuel") && hotbar.RemoveFromSelected(1))
             {
                 hasFuel = true;
-                Quest.Notify("generator_fueled");
+                Quest_YH.Notify("generator_fueled");
                 Debug.Log("[발전기] 연료 주입 완료");
                 onFueled?.Invoke();
             }
@@ -113,7 +113,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         if (!isRunning)
         {
             isRunning = true;
-            Quest.Notify("generator_on");
+            Quest_YH.Notify("generator_on");
             Debug.Log("[발전기] 가동 시작");
             onGeneratorOn?.Invoke();
 
@@ -125,7 +125,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
                 Debug.Log("[오염] 발전기 가동 → 오염도 상승 시작");
             }
 
-            Quest.Notify("next_task_power_switch");
+            Quest_YH.Notify("next_task_power_switch");
             Debug.Log("[목표] 전력 스위치실로 이동하세요");
         }
         else
@@ -146,7 +146,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         if (!generatorRef.isRunning) { Debug.Log("[전력] 발전기를 먼저 가동해야 합니다"); return; }
 
         facilityPowerOn = true;
-        Quest.Notify("power_on");
+        Quest_YH.Notify("power_on");
         Debug.Log("[전력] 비상 전력 ON");
         onFacilityPowerOn?.Invoke();
     }
@@ -217,7 +217,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             if (hotbar.RemoveFromSelected(1))
             {
                 Debug.Log("[계란껍질] 식초 사용 → 제거됨");
-                Quest.Notify("eggshell_removed");
+                Quest_YH.Notify("eggshell_removed");
                 Destroy(gameObject);
             }
             else
@@ -265,7 +265,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             if (miniGameFinished) return;
             miniGameFinished = true;
 
-            Quest.Notify("data_downloaded");
+            Quest_YH.Notify("data_downloaded");
             onMiniGameFinished?.Invoke(); // 여기다 타임라인 Play, 오염 4단계 연결해 두면 됨
             onMiniGameClosed?.Invoke();   // 🔓 입력/커서 복구(외부에서 연결)
             Debug.Log("[단말] 데이터 다운로드 완료(게이지 100%)");

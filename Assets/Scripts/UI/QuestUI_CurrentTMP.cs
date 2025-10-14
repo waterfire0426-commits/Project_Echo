@@ -35,7 +35,7 @@ public class QuestUI_CurrentTMP : MonoBehaviour
 
     void TryHook()
     {
-        var qm = QuestManager.Instance;
+        var qm = QuestManager_YH.Instance;
         if (qm == null) return;
 
         qm.OnChanged -= Redraw; // 중복 구독 방지
@@ -46,14 +46,14 @@ public class QuestUI_CurrentTMP : MonoBehaviour
 
     void OnDisable()
     {
-        var qm = QuestManager.Instance;
+        var qm = QuestManager_YH.Instance;
         if (qm != null) qm.OnChanged -= Redraw;
         hooked = false;
     }
 
     void Redraw()
     {
-        var qm = QuestManager.Instance;
+        var qm = QuestManager_YH.Instance;
         if (!qm) { t.text = $"<b>{title}</b>\n(퀘스트 없음)"; t.enabled = true; return; }
 
         t.text = qm.BuildCurrentText(title);

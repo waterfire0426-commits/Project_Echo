@@ -5,7 +5,7 @@ using System.Text;
 using UnityEngine;
 
 [DefaultExecutionOrder(-500)]
-public class QuestManager : MonoBehaviour
+public class QuestManager_YH : MonoBehaviour
 {
     [Serializable]
     public class Step
@@ -15,7 +15,7 @@ public class QuestManager : MonoBehaviour
         [HideInInspector] public bool done;
     }
 
-    public static QuestManager Instance { get; private set; }
+    public static QuestManager_YH Instance { get; private set; }
 
     [Header("Steps (위→아래 순서대로 진행)")]
     public List<Step> steps = new List<Step>();
@@ -73,8 +73,8 @@ public class QuestManager : MonoBehaviour
 }
 
 // 편의 정적 헬퍼(로직에서 호출)
-public static class Quest
+public static class Quest_YH
 {
     public static void Notify(string triggerId)
-        => QuestManager.Instance?.Notify(triggerId);
+        => QuestManager_YH.Instance?.Notify(triggerId);
 }
