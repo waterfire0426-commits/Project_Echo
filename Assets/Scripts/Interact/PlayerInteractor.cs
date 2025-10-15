@@ -1,57 +1,94 @@
 using UnityEngine;
-using System; // Action 사용 위해 추가
-
+using System; // Action
 
 public class PlayerInteractor : MonoBehaviour
 {
-    public float interactRange = 3f;
-    public CrosshairUI crosshair;
-    private Camera mainCamera;
+    [Header("Ray")]
+    public float interactRange = 4.5f;
+    public LayerMask interactMask = ~0;                 // Everything
+    public bool includeTriggers = true;                 // 트리거도 맞추기
+    public bool debugLog = false;
 
-    // UI 파트에서 구독해서 사용할 수 있는 공개 이벤트
+    [Header("UI")]
+    public CrosshairUI crosshair;
+
+    private Camera mainCamera;
     public static event Action<IInteractable> OnFocusChanged;
 
-    // 현재 바라보고 있는 오브젝트 추적
     IInteractable currentInteractable;
 
     void Start()
     {
-        mainCamera = Camera.main; // 매번 검색하지 않도록 카메라 참조 미리 저장
+        mainCamera = Camera.main;
     }
 
     void Update()
     {
+        if (!mainCamera) { mainCamera = Camera.main; if (!mainCamera) return; }
+
         CheckForInteractable();
 
-        if (Input.GetKeyDown(KeyCode.E) && currentInteractable != null)
+        if (Input.GetKeyDown(KeyCode.E))
         {
-            currentInteractable.Interact(gameObject);
+            if (currentInteractable != null) // ★ null 비교!
+            {
+                if (debugLog) Debug.Log("[Interactor] E → Interact() 호출");
+                currentInteractable.Interact(gameObject);
+            }
+            else if (debugLog)
+            {
+                Debug.LogWarning("[Interactor] 조준 대상 없음");
+            }
         }
     }
 
     void CheckForInteractable()
     {
-        Ray ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
+        var ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
+        var qti = includeTriggers ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
+
         IInteractable newInteractable = null;
 
-        if (Physics.Raycast(ray, out RaycastHit hit, interactRange))
+        if (Physics.Raycast(ray, out RaycastHit hit, interactRange, interactMask, qti))
         {
-            newInteractable = hit.collider.GetComponent<IInteractable>();
+            // 콜라이더가 자식이고 스크립트가 부모일 수도 있으니 부모까지 탐색
+            newInteractable = hit.collider.GetComponentInParent<IInteractable>();
+
+            #if UNITY_EDITOR
+            if (debugLog)
+                Debug.Log($"[Interactor] Hit: {hit.collider.name} (Layer={LayerMask.LayerToName(hit.collider.gameObject.layer)})"
+                          + (newInteractable != null ? " -> IInteractable OK" : " -> IInteractable 없음"));
+            Debug.DrawRay(ray.origin, ray.direction * hit.distance, Color.green);
+            #endif
+        }
+        else
+        {
+            #if UNITY_EDITOR
+            Debug.DrawRay(ray.origin, ray.direction * interactRange, Color.red);
+            #endif
         }
 
-        // 바라보는 대상이 바뀌었는지 확인
+        // 대상이 바뀌었으면 포커스 콜백 처리
         if (newInteractable != currentInteractable)
         {
-            currentInteractable?.OnUnfocus(); // 이전 대상
-            newInteractable?.OnFocus();     // 새로운 대상
-            currentInteractable = newInteractable; // 현재 대상 업데이트
+            if (currentInteractable != null) currentInteractable.OnUnfocus();
+            if (newInteractable   != null) newInteractable.OnFocus();
 
-            // 이벤트 발생, 바라보는 대상이 바뀌었다고 모두에게 알림
-            // newInteractable이 null일 수도 있음 (허공 볼 때)
+            currentInteractable = newInteractable;
             OnFocusChanged?.Invoke(newInteractable);
         }
 
-        // 상호작용 가능한 대상이 있는지에 따라 크로스헤어 활성화
-        crosshair?.SetActive(currentInteractable != null);
+        // 크로스헤어 갱신 (bool 요구하므로 null 비교!)
+        if (crosshair != null) crosshair.SetActive(currentInteractable != null);
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        if (!Application.isPlaying && Camera.main)
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawLine(Camera.main.transform.position,
+                            Camera.main.transform.position + Camera.main.transform.forward * interactRange);
+        }
     }
 }

@@ -1,21 +1,22 @@
-// File: QuestManager.cs
+#if false
 using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
 [DefaultExecutionOrder(-500)]
-public class QuestManager : MonoBehaviour
+public class QuestManagerLegacy : MonoBehaviour
 {
     [Serializable]
     public class Step
     {
-        public string id;                 // 트리거 키(Quest.Notify와 동일 문자열)
-        [TextArea] public string text;    // 화면에 표시할 문구
+        public string id;
+        [TextArea] public string text;
         [HideInInspector] public bool done;
     }
 
-    public static QuestManager Instance { get; private set; }
+    // 타입을 올바르게 수정 (레거시 클래스 자신)
+    public static QuestManagerLegacy Instance { get; private set; }
 
     [Header("Steps (위→아래 순서대로 진행)")]
     public List<Step> steps = new List<Step>();
@@ -25,15 +26,14 @@ public class QuestManager : MonoBehaviour
 
     public event Action OnChanged;
 
-    void Awake()
+    private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        OnChanged?.Invoke(); // UI가 켜져있어도 즉시 그릴 수 있게 신호
+        OnChanged?.Invoke();
     }
 
-    // 단계 완료 알림 (예: Quest.Notify("fuel_pickup"))
     public void Notify(string triggerId)
     {
         if (string.IsNullOrEmpty(triggerId)) return;
@@ -44,10 +44,8 @@ public class QuestManager : MonoBehaviour
             currentIndex = Mathf.Min(currentIndex + 1, steps.Count);
             OnChanged?.Invoke();
         }
-        // 필요하면 역순/무순서 처리 로직 추가 가능
     }
 
-    // 전체 목록용(기존 UI에서 사용)
     public string BuildDisplayText(string title = "Objectives")
     {
         var sb = new StringBuilder();
@@ -61,7 +59,6 @@ public class QuestManager : MonoBehaviour
         return sb.ToString();
     }
 
-    // 🔹 지금 요구: 현재 단계만 표시
     public string BuildCurrentText(string title = "Objective")
     {
         if (currentIndex >= steps.Count)
@@ -71,10 +68,5 @@ public class QuestManager : MonoBehaviour
         return $"<b>{title}</b>\n• {s.text}";
     }
 }
+#endif
 
-// 편의 정적 헬퍼(로직에서 호출)
-public static class Quest
-{
-    public static void Notify(string triggerId)
-        => QuestManager.Instance?.Notify(triggerId);
-}

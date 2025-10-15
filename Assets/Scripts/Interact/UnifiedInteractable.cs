@@ -1,3 +1,4 @@
+// File: Assets/Scripts/Interact/UnifiedInteractable.cs
 using UnityEngine;
 using UnityEngine.Events;
 using System.Collections;
@@ -8,6 +9,10 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
 
     [Header("Object Type")]
     public Kind kind = Kind.None;
+
+    // 헤드리스(화면 없이 진행) 허용 여부
+    [Header("Download (Headless)")]
+    public bool allowHeadlessWhenNoUI = true;
 
     [Header("Generator / PowerSwitch State")]
     public bool hasFuel;
@@ -27,12 +32,11 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
     public UnityEvent onFacilityPowerOn;
 
     [Header("Integration")]
-    public Transform uiRootOverride;           // 미니게임 프리팹 붙일 캔버스(없으면 자동 탐색)
-    public UnityEvent onMiniGameOpened;        // 미니게임 열릴 때(커서/입력 잠금 등)
-    public UnityEvent onMiniGameClosed;        // 미니게임 닫힐 때(복구)
+    public Transform uiRootOverride;           // (사용 안 해도 OK)
+    public UnityEvent onMiniGameOpened;
+    public UnityEvent onMiniGameClosed;
 
-
-    // === Door 관련 ===
+    // === Door ===
     [Header("Door Settings (Door 전용)")]
     public Transform doorHinge;
     public float openAngle = 90f;
@@ -40,14 +44,19 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
     private bool isOpen = false;
     private Coroutine doorRoutine;
 
-    // === DataTerminal(미니게임: 게이지 완료 시점 트리거) ===
-    [Header("Data Terminal (MiniGame)")]
-    public GameObject miniGamePrefab;          // UI팀 미니게임 프리팹
-    [Tooltip("게이지 진행률 브로드캐스트(0~1). 필요 없으면 비워두기")]
-    public UnityEvent<float> onMiniGameProgress; // 선택: 진행률 UI 등 연결
-    [Tooltip("게이지 100% 완료 시 호출 (여기에 회상 재생 / 오염 4단계 연결)")]
-    public UnityEvent onMiniGameFinished;        // ✅ 핵심: 완료 시점 기준
+    // === DataTerminal ===
+    [Header("Data Terminal (Download)")]
+    public GameObject miniGamePrefab;                  // (씬에 DownloadUIManager가 있다면 비워도 됨)
+    public UnityEvent<float> onMiniGameProgress;
+    public UnityEvent onMiniGameFinished;
     private bool miniGameFinished = false;
+
+    [Header("Download Modes")]
+    public float slowSeconds = 20f;
+    public float fastSeconds = 10f;
+    [Range(0f, 2f)] public float slowNoisePerSec = 0.2f;
+    [Range(0f, 2f)] public float fastNoisePerSec = 0.6f;
+    public bool startFastByDefault = false;
 
     // === IInteractable ===
     public void OnFocus() { }
@@ -61,11 +70,11 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             case Kind.Generator:    DoGenerator(interactor);    break;
             case Kind.PowerSwitch:  DoPowerSwitch(interactor);  break;
             case Kind.HazmatEquip:  DoHazmatEquip(interactor);  break;
-            case Kind.Door:         DoDoor(interactor);         break;
+            case Kind.Door:         DoDoor();                   break;
             case Kind.EggShell:     DoEggShell(interactor);     break;
             case Kind.DataTerminal: DoDataTerminal(interactor); break;
             default:
-                Debug.Log("[Interact] 타입이 설정되지 않음");
+                Debug.LogWarning("[상호작용] 타입이 설정되지 않았습니다.");
                 break;
         }
     }
@@ -76,15 +85,17 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
     void DoFuelPickup(GameObject interactor)
     {
         var inv = interactor.GetComponent<PlayerInventory>();
-        if (!inv) { Debug.LogWarning("[연료통] PlayerInventory 없음"); return; }
+        if (!inv) { Debug.LogWarning("[연료통] PlayerInventory 컴포넌트가 없습니다."); return; }
 
         inv.hasFuel = true;
 
         var hotbar = interactor.GetComponentInChildren<Hotbar>();
         if (hotbar && pickupItem) hotbar.Add(pickupItem, pickupAmount);
 
-        Quest.Notify("fuel_pickup");
-        Debug.Log("[목표] 연료통 획득 → 발전기에 주입하세요");
+        interactor.GetComponent<ContamHook_YH>()?.AddTemp(+10f); // (선택) 오염 상승
+
+        QuestManager.Notify("fuel_pickup");
+        Debug.Log("[목표] 연료통 획득 → 발전기에 주입하세요.");
         Destroy(gameObject);
     }
 
@@ -99,8 +110,8 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             if (hotbar && hotbar.SelectedIs("fuel") && hotbar.RemoveFromSelected(1))
             {
                 hasFuel = true;
-                Quest.Notify("generator_fueled");
-                Debug.Log("[발전기] 연료 주입 완료");
+                QuestManager.Notify("generator_fueled");
+                Debug.Log("[발전기] 연료 주입 완료.");
                 onFueled?.Invoke();
             }
             else
@@ -113,24 +124,18 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         if (!isRunning)
         {
             isRunning = true;
-            Quest.Notify("generator_on");
-            Debug.Log("[발전기] 가동 시작");
+            QuestManager.Notify("generator_on");
+            Debug.Log("[발전기] 가동 시작.");
             onGeneratorOn?.Invoke();
 
-            var contam = FindFirstObjectByType<Contamination>();
+            interactor.GetComponent<ContamHook_YH>()?.AddTemp(+5f); // (선택) 오염 상승
 
-            if (contam != null)
-            {
-                contam.Add(10f); // 오염도 1단계 시작
-                Debug.Log("[오염] 발전기 가동 → 오염도 상승 시작");
-            }
-
-            Quest.Notify("next_task_power_switch");
-            Debug.Log("[목표] 전력 스위치실로 이동하세요");
+            QuestManager.Notify("next_task_power_switch");
+            Debug.Log("[목표] 전력 스위치실로 이동하세요.");
         }
         else
         {
-            Debug.Log("[발전기] 이미 가동 중");
+            Debug.Log("[발전기] 이미 가동 중입니다.");
         }
     }
 
@@ -139,15 +144,15 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
     // -------------------------------
     void DoPowerSwitch(GameObject interactor)
     {
-        if (facilityPowerOn) { Debug.Log("[전력] 이미 활성화됨"); return; }
+        if (facilityPowerOn) { Debug.Log("[전력] 이미 활성화되어 있습니다."); return; }
 
-        if (!generatorRef) { Debug.LogWarning("[전력] generatorRef 연결 안 됨"); return; }
-        if (generatorRef.kind != Kind.Generator) { Debug.LogWarning("[전력] ref 타입 오류"); return; }
-        if (!generatorRef.isRunning) { Debug.Log("[전력] 발전기를 먼저 가동해야 합니다"); return; }
+        if (!generatorRef) { Debug.LogWarning("[전력] generatorRef가 연결되지 않았습니다."); return; }
+        if (generatorRef.kind != Kind.Generator) { Debug.LogWarning("[전력] generatorRef 타입 오류입니다."); return; }
+        if (!generatorRef.isRunning) { Debug.Log("[전력] 발전기를 먼저 가동해야 합니다."); return; }
 
         facilityPowerOn = true;
-        Quest.Notify("power_on");
-        Debug.Log("[전력] 비상 전력 ON");
+        QuestManager.Notify("power_on");
+        Debug.Log("[전력] 비상 전력 ON.");
         onFacilityPowerOn?.Invoke();
     }
 
@@ -159,19 +164,21 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         var suit = interactor.GetComponentInChildren<ISuitReceiver>();
         if (suit == null)
         {
-            Debug.LogWarning("[방호복] ISuitReceiver를 찾을 수 없음 (PlayerMove에 구현 필요)");
+            Debug.LogWarning("[방호복] ISuitReceiver를 찾지 못했습니다. (PlayerMove에 구현 필요)");
             return;
         }
 
         bool next = !suit.IsSuited;
         suit.ApplySuit(next);
-        Debug.Log(next ? "[방호복] 착용 완료" : "[방호복] 해제 완료");
+        Debug.Log(next ? "[방호복] 착용 완료." : "[방호복] 해제 완료.");
+
+        if (next) QuestManager.Notify("suit_on");
     }
 
     // -------------------------------
     // 문 열기(회전형)
     // -------------------------------
-    void DoDoor(GameObject interactor)
+    void DoDoor()
     {
         Transform target = doorHinge ? doorHinge : transform;
 
@@ -197,7 +204,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         }
 
         doorRoutine = null;
-        Debug.Log(isOpen ? "[문] 열림" : "[문] 닫힘");
+        Debug.Log(isOpen ? "[문] 열림." : "[문] 닫힘.");
     }
 
     // -------------------------------
@@ -208,7 +215,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         var hotbar = interactor.GetComponentInChildren<Hotbar>();
         if (!hotbar)
         {
-            Debug.LogWarning("[계란껍질] Hotbar 없음");
+            Debug.LogWarning("[계란껍질] Hotbar가 없습니다.");
             return;
         }
 
@@ -216,8 +223,8 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         {
             if (hotbar.RemoveFromSelected(1))
             {
-                Debug.Log("[계란껍질] 식초 사용 → 제거됨");
-                Quest.Notify("eggshell_removed");
+                Debug.Log("[계란껍질] 식초 사용 → 제거됨.");
+                QuestManager.Notify("eggshell_removed");
                 Destroy(gameObject);
             }
             else
@@ -232,51 +239,103 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
     }
 
     // -------------------------------
-    // 데이터 터미널(게이지 완료 기준)
+    // 데이터 터미널 (UI 있으면 UI, 없으면 헤드리스)
     // -------------------------------
     void DoDataTerminal(GameObject interactor)
     {
-        if (miniGameFinished) { Debug.Log("[단말] 이미 다운로드 완료"); return; }
-        if (!miniGamePrefab) { Debug.LogWarning("[단말] miniGamePrefab 미지정"); return; }
+        Debug.Log("[단말] 상호작용 수신.");
 
-        // 1) 프리팹 붙일 부모 찾기: 인스펙터 지정 > 'UIRoot' 태그 > 월드 루트
-        Transform parent = uiRootOverride;
-        if (!parent)
+        if (miniGameFinished) { Debug.Log("[단말] 이미 다운로드를 완료했습니다."); return; }
+
+        // 씬에서 UI 브리지 찾기
+        var bridge = FindFirstObjectByType<DownloadUIBridge_YH>();
+
+        // UI가 있으면: UI 열고 모드 선택하여 진행
+        if (bridge != null)
         {
-            var uiGo = GameObject.FindWithTag("UIRoot"); // Canvas에 'UIRoot' 태그 달아두면 편함
-            if (uiGo) parent = uiGo.transform;
+            onMiniGameOpened?.Invoke(); // 🔒 입력/커서 잠금 등 외부 처리
+            Debug.Log("[단말] UI 브리지 감지 → 다운로드 UI 오픈.");
+
+            // Open은 '오픈만' 하고, 시작은 우리가 명시적으로 선택
+            bridge.Open(
+                onSlow:  null,
+                onFast:  null,
+                autoStartSlow: false
+            );
+
+            bool fast = startFastByDefault;
+            if (fast)
+            {
+                Debug.Log($"[단말] 고속 모드 시작 ({fastSeconds:0.0}s).");
+                QuestManager.Notify("download_start_fast");
+                StartCoroutine(RunDownloadRoutine(interactor, bridge, fastSeconds, fastNoisePerSec));
+            }
+            else
+            {
+                Debug.Log($"[단말] 기본 모드 시작 ({slowSeconds:0.0}s).");
+                QuestManager.Notify("download_start_slow");
+                StartCoroutine(RunDownloadRoutine(interactor, bridge, slowSeconds, slowNoisePerSec));
+            }
+            return;
         }
 
-        GameObject inst = parent ? Instantiate(miniGamePrefab, parent) : Instantiate(miniGamePrefab);
-        if (!parent) Debug.LogWarning("[단말] uiRootOverride/태그가 없어 월드에 생성했습니다.");
-
-        var bridge = inst.GetComponent<MiniGameBridge>();
-        if (!bridge) bridge = inst.AddComponent<MiniGameBridge>();
-
-        // 🔒 입력/커서 잠금은 이벤트로 외부 처리(컨트롤러 disable 등 연결)
-        onMiniGameOpened?.Invoke();
-
-        // 2) 진행률 브로드캐스트(선택)
-        bridge.OnProgress += p => { onMiniGameProgress?.Invoke(p); };
-
-        // 3) 완료(게이지 100%) 시 후처리
-        bridge.OnFinished += () =>
+        // UI가 없는데 헤드리스 허용이면: 로그만 찍고 타이머 진행
+        if (allowHeadlessWhenNoUI)
         {
-            if (miniGameFinished) return;
-            miniGameFinished = true;
+            bool fast = startFastByDefault;
+            float sec   = fast ? fastSeconds     : slowSeconds;
+            float noise = fast ? fastNoisePerSec : slowNoisePerSec;
+            string startId = fast ? "download_start_fast" : "download_start_slow";
 
-            Quest.Notify("data_downloaded");
-            onMiniGameFinished?.Invoke(); // 여기다 타임라인 Play, 오염 4단계 연결해 두면 됨
-            onMiniGameClosed?.Invoke();   // 🔓 입력/커서 복구(외부에서 연결)
-            Debug.Log("[단말] 데이터 다운로드 완료(게이지 100%)");
-        };
+            Debug.Log($"[단말/헤드리스] UI 없음 → {(fast ? "고속" : "기본")} 모드 시작 ({sec:0.0}s).");
+            QuestManager.Notify(startId);
+            StartCoroutine(RunDownloadHeadless(interactor, sec, noise));
+            return;
+        }
 
-        // 4) 창 닫힘(취소 등) 시 복구만
-        bridge.OnClosed += () =>
-        {
-            onMiniGameClosed?.Invoke();   // 🔓 복구
-            Debug.Log("[단말] 미니게임 종료");
-        };
+        // UI도 없고 헤드리스도 금지면 안내
+        Debug.LogWarning("[단말] UI(DownloadUIManager/Bridge)가 없고, 헤드리스도 비허용입니다.");
     }
 
+    IEnumerator RunDownloadRoutine(GameObject interactor, DownloadUIBridge_YH bridge, float seconds, float noisePerSec)
+    {
+        var contam = interactor.GetComponent<ContamHook_YH>();
+        float t = 0f;
+
+        while (t < seconds)
+        {
+            t += Time.deltaTime;
+            float p = Mathf.Clamp01(t / seconds);
+            bridge.ShowProgress(p);
+            onMiniGameProgress?.Invoke(p);
+
+            if (contam) contam.AddTemp(noisePerSec * Time.deltaTime * 5f);
+            yield return null;
+        }
+
+        QuestManager.Notify("download_done");
+        onMiniGameFinished?.Invoke();
+        onMiniGameClosed?.Invoke();
+        bridge.Close();
+
+        miniGameFinished = true;
+        Debug.Log("[단말] 다운로드 완료 (UI 모드).");
+    }
+
+    IEnumerator RunDownloadHeadless(GameObject interactor, float seconds, float noisePerSec)
+    {
+        var contam = interactor.GetComponent<ContamHook_YH>();
+        float t = 0f;
+
+        while (t < seconds)
+        {
+            t += Time.deltaTime;
+            if (contam) contam.AddTemp(noisePerSec * Time.deltaTime * 5f);
+            yield return null;
+        }
+
+        QuestManager.Notify("download_done");
+        miniGameFinished = true;
+        Debug.Log("[단말/헤드리스] 다운로드 완료 → 트리거 발사.");
+    }
 }
