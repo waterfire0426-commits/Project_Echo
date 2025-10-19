@@ -16,7 +16,7 @@ public class MainMenu : MonoBehaviour
     public void OnClickNewGame()
     {
         Debug.Log("시작하기");
-        SceneManager.LoadScene("MainScene");
+        SceneManager.LoadScene("MainScene_YR");
     }
 
     public void OnClickLoad()

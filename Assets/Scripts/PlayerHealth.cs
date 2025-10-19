@@ -16,6 +16,10 @@ public class PlayerHealth : MonoBehaviour
     [Header("Scene Settings")]
     public string mainMenuSceneName = "MainMenu"; // 메인 메뉴 씬 이름
 
+    public FPCamera cameraScript;
+
+    public GameObject crosshair; // 인스펙터에서 드래그
+
     void Start()
     {
         currentHealth = maxHealth;
@@ -72,8 +76,13 @@ public class PlayerHealth : MonoBehaviour
         Time.timeScale = 0f;
 
         // 마우스 보이게 + UI 클릭 가능하게
-        Cursor.visible = true;
+        cameraScript.isPaused = true;
         Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        // crosshair 보이기/숨기기
+            if (crosshair != null)
+                crosshair.SetActive(false);
     }
 
     // 강제로 Game Over 시킬 때 (예: 오염 게이지 5단계)
@@ -101,3 +110,4 @@ public class PlayerHealth : MonoBehaviour
 #endif
     }
 }
+

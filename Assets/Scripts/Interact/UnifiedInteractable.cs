@@ -49,6 +49,10 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
     public UnityEvent onMiniGameFinished;        // ✅ 핵심: 완료 시점 기준
     private bool miniGameFinished = false;
 
+    //다운로드 UI 추가_YR
+    // [Header("Download UI")]
+    // public DownloadUIManager downloadManager;  // 인스펙터에서 연결
+
     // === IInteractable ===
     public void OnFocus() { }
     public void OnUnfocus() { }
@@ -237,6 +241,17 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
     void DoDataTerminal(GameObject interactor)
     {
         if (miniGameFinished) { Debug.Log("[단말] 이미 다운로드 완료"); return; }
+        // 이 부분 추가_YR
+        // if (downloadManager == null) 
+        // { 
+        //     Debug.LogWarning("[단말] DownloadUIManager 미지정!"); 
+        //     return; 
+        // }
+        // downloadManager.StartDownload();
+        // miniGameFinished = true;
+        // Debug.Log("[단말] 다운로드 시작!");
+        //
+        
         if (!miniGamePrefab) { Debug.LogWarning("[단말] miniGamePrefab 미지정"); return; }
 
         // 1) 프리팹 붙일 부모 찾기: 인스펙터 지정 > 'UIRoot' 태그 > 월드 루트
@@ -252,6 +267,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
 
         var bridge = inst.GetComponent<MiniGameBridge>();
         if (!bridge) bridge = inst.AddComponent<MiniGameBridge>();
+        
 
         // 🔒 입력/커서 잠금은 이벤트로 외부 처리(컨트롤러 disable 등 연결)
         onMiniGameOpened?.Invoke();

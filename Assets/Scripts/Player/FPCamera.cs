@@ -79,31 +79,35 @@ public class FPCamera : MonoBehaviour
     {
         if (!playerRoot || !cc) return;
 
+        // ✅ 추가: 일시정지 상태면 회전/움직임 처리 안 함
+        if (isPaused || Time.timeScale == 0f)
+            return;
+
         // --- Mouse look ---
         float mx = Input.GetAxisRaw("Mouse X") * mouseXSens;
         float my = Input.GetAxisRaw("Mouse Y") * mouseYSens;
 
-        yaw   += mx;
-        pitch  = Mathf.Clamp(pitch - my, pitchMin, pitchMax);
+        yaw += mx;
+        pitch = Mathf.Clamp(pitch - my, pitchMin, pitchMax);
 
-        playerRoot.rotation     = Quaternion.Euler(0f, yaw, 0f);   // 좌우(Yaw)는 본체
+        playerRoot.rotation = Quaternion.Euler(0f, yaw, 0f);   // 좌우(Yaw)는 본체
         transform.localRotation = Quaternion.Euler(pitch, 0f, 0f); // 상하(Pitch)는 카메라
 
         // --- Crouch view (hold) ---
         bool crouching = Input.GetKey(crouchKey);
-        float targetY  = crouching ? crouchHeight : standHeight;
-        viewY          = Mathf.Lerp(viewY, targetY, Time.deltaTime * crouchLerp);
+        float targetY = crouching ? crouchHeight : standHeight;
+        viewY = Mathf.Lerp(viewY, targetY, Time.deltaTime * crouchLerp);
 
         // --- Head bob (stride-based) ---
         Vector3 planarVel = cc.velocity; planarVel.y = 0f;
-        float speed   = planarVel.magnitude;
+        float speed = planarVel.magnitude;
         bool grounded = cc.isGrounded;
-        bool moving   = speed > 0.05f && grounded;
+        bool moving = speed > 0.05f && grounded;
 
         float amp, stride;
-        if (crouching)                       { amp = crouchBobAmp;  stride = crouchStride; }
-        else if (motor && motor.isSprinting) { amp = sprintBobAmp;  stride = sprintStride; }
-        else                                  { amp = walkBobAmp;    stride = walkStride;  }
+        if (crouching) { amp = crouchBobAmp; stride = crouchStride; }
+        else if (motor && motor.isSprinting) { amp = sprintBobAmp; stride = sprintStride; }
+        else { amp = walkBobAmp; stride = walkStride; }
 
         if (moving)
         {
@@ -137,8 +141,25 @@ public class FPCamera : MonoBehaviour
             if (Application.isFocused && Cursor.lockState != CursorLockMode.Locked)
             {
                 Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible   = false;
+                Cursor.visible = false;
             }
         }
     }
+    // 이 부분 추가_YR 미니게임 입력 잠금/복구용용
+    public void DisableInput()
+    {
+        isPaused = true;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+        Debug.Log("[FPCamera] 입력 잠금됨 (미니게임 중)");
+    }
+
+    public void EnableInput()
+    {
+        isPaused = false;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+        Debug.Log("[FPCamera] 입력 복구됨 (미니게임 종료)");
+    }
+
 }
