@@ -14,10 +14,7 @@ public class Act1Trigger : MonoBehaviour
         triggered = true;
 
         Debug.Log("[1액트] 회상 트리거 발동!");
-        QuestManager.Notify("act1_start"); // 퀘스트 시스템에 알림 (있다면)
-
-        // TODO: 이후 컷씬 or 씬 전환 연출 추가
-        // 예시: SceneLoader.Load("Act1_Cutscene");
-        // 또는 LightController.StartFlicker();
+        QuestManager.Notify(TRG.ACT1_START); // 퀘스트/연출에 알림
+        // TODO: 컷씬/씬전환 등은 팀 연동 포인트
     }
 }

@@ -12,8 +12,8 @@ public class Act2Trigger : MonoBehaviour
         if (puzzle1Done && puzzle2Done && puzzle3Done)
         {
             Debug.Log("⚡ 모든 장치가 작동! 2액트 회상 트리거 발동!");
-            // QuestManager.Notify("act2_start");
-            // 나중에 SceneManager.LoadScene("Act2_Scene"); 로 연결 가능
+            // 필요 시 해제하고 사용:
+            // QuestManager.Notify(TRG.ACT2_START);
             enabled = false; // 중복 방지
         }
     }

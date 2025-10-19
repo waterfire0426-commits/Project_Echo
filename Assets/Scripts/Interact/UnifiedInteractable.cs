@@ -1,4 +1,3 @@
-// File: Assets/Scripts/Interact/UnifiedInteractable.cs
 using UnityEngine;
 using UnityEngine.Events;
 using System.Collections;
@@ -94,7 +93,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
 
         interactor.GetComponent<ContamHook_YH>()?.AddTemp(+10f); // (선택) 오염 상승
 
-        QuestManager.Notify("fuel_pickup");
+        QuestManager.Notify(TRG.FUEL_PICKUP);
         Debug.Log("[목표] 연료통 획득 → 발전기에 주입하세요.");
         Destroy(gameObject);
     }
@@ -110,7 +109,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             if (hotbar && hotbar.SelectedIs("fuel") && hotbar.RemoveFromSelected(1))
             {
                 hasFuel = true;
-                QuestManager.Notify("generator_fueled");
+                QuestManager.Notify(TRG.GENERATOR_FUELED);
                 Debug.Log("[발전기] 연료 주입 완료.");
                 onFueled?.Invoke();
             }
@@ -124,13 +123,13 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         if (!isRunning)
         {
             isRunning = true;
-            QuestManager.Notify("generator_on");
+            QuestManager.Notify(TRG.GENERATOR_ON);
             Debug.Log("[발전기] 가동 시작.");
             onGeneratorOn?.Invoke();
 
             interactor.GetComponent<ContamHook_YH>()?.AddTemp(+5f); // (선택) 오염 상승
 
-            QuestManager.Notify("next_task_power_switch");
+            QuestManager.Notify(TRG.NEXT_POWER_SWITCH);
             Debug.Log("[목표] 전력 스위치실로 이동하세요.");
         }
         else
@@ -151,7 +150,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         if (!generatorRef.isRunning) { Debug.Log("[전력] 발전기를 먼저 가동해야 합니다."); return; }
 
         facilityPowerOn = true;
-        QuestManager.Notify("power_on");
+        QuestManager.Notify(TRG.POWER_ON);
         Debug.Log("[전력] 비상 전력 ON.");
         onFacilityPowerOn?.Invoke();
     }
@@ -172,7 +171,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         suit.ApplySuit(next);
         Debug.Log(next ? "[방호복] 착용 완료." : "[방호복] 해제 완료.");
 
-        if (next) QuestManager.Notify("suit_on");
+        if (next) QuestManager.Notify(TRG.HAZMAT_ON);
     }
 
     // -------------------------------
@@ -224,7 +223,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             if (hotbar.RemoveFromSelected(1))
             {
                 Debug.Log("[계란껍질] 식초 사용 → 제거됨.");
-                QuestManager.Notify("eggshell_removed");
+                QuestManager.Notify(TRG.EGGSHELL_REMOVED);
                 Destroy(gameObject);
             }
             else
@@ -257,23 +256,19 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             Debug.Log("[단말] UI 브리지 감지 → 다운로드 UI 오픈.");
 
             // Open은 '오픈만' 하고, 시작은 우리가 명시적으로 선택
-            bridge.Open(
-                onSlow:  null,
-                onFast:  null,
-                autoStartSlow: false
-            );
+            bridge.Open(onSlow: null, onFast: null, autoStartSlow: false);
 
             bool fast = startFastByDefault;
             if (fast)
             {
                 Debug.Log($"[단말] 고속 모드 시작 ({fastSeconds:0.0}s).");
-                QuestManager.Notify("download_start_fast");
+                QuestManager.Notify(TRG.DL_START_FAST);
                 StartCoroutine(RunDownloadRoutine(interactor, bridge, fastSeconds, fastNoisePerSec));
             }
             else
             {
                 Debug.Log($"[단말] 기본 모드 시작 ({slowSeconds:0.0}s).");
-                QuestManager.Notify("download_start_slow");
+                QuestManager.Notify(TRG.DL_START_SLOW);
                 StartCoroutine(RunDownloadRoutine(interactor, bridge, slowSeconds, slowNoisePerSec));
             }
             return;
@@ -285,10 +280,9 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             bool fast = startFastByDefault;
             float sec   = fast ? fastSeconds     : slowSeconds;
             float noise = fast ? fastNoisePerSec : slowNoisePerSec;
-            string startId = fast ? "download_start_fast" : "download_start_slow";
 
             Debug.Log($"[단말/헤드리스] UI 없음 → {(fast ? "고속" : "기본")} 모드 시작 ({sec:0.0}s).");
-            QuestManager.Notify(startId);
+            QuestManager.Notify(fast ? TRG.DL_START_FAST : TRG.DL_START_SLOW);
             StartCoroutine(RunDownloadHeadless(interactor, sec, noise));
             return;
         }
@@ -313,7 +307,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             yield return null;
         }
 
-        QuestManager.Notify("download_done");
+        QuestManager.Notify(TRG.DL_DONE);
         onMiniGameFinished?.Invoke();
         onMiniGameClosed?.Invoke();
         bridge.Close();
@@ -334,7 +328,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             yield return null;
         }
 
-        QuestManager.Notify("download_done");
+        QuestManager.Notify(TRG.DL_DONE);
         miniGameFinished = true;
         Debug.Log("[단말/헤드리스] 다운로드 완료 → 트리거 발사.");
     }
