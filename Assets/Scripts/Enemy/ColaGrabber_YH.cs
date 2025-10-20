@@ -1,110 +1,112 @@
-// File: Assets/Scripts/Enemy/ColaGrabber_YH.cs
 using UnityEngine;
 using System.Collections;
 
 [RequireComponent(typeof(Collider))]
 public class ColaGrabber_YH : MonoBehaviour
 {
-    [Header("이동/탐지")]
-    public float viewDistance = 18f;
-    [Range(0,180)] public float viewAngle = 80f;
-    public float speed = 4f;
+    [Header("Detection")]
+    public float detectRange = 10f;
+    public float chaseSpeed = 3f;
+    public float grabRange = 1.5f;
 
-    [Header("공격/잡기")]
-    public float grabRange = 1.6f;
-    public float contamOnFail = 10f;
-    public string mentosItemId = "mentos";
-    public KeyCode mashKey = KeyCode.E;
-    public int mashCountToEscape = 12;
+    [Header("QTE")]
     public float grabDuration = 3f;
+    public KeyCode qteKey = KeyCode.Space;
+    public int qtePressCount = 5;
 
-    Transform player;
-    bool grabbing = false;
+    [Header("References")]
+    public Transform player;
+    public ContamHook_YH contamHook;
+    public PlayerHealth_YH playerHealth;
+
+    private bool isChasing = false;
+    private bool isGrabbing = false;
+    private bool defeated = false;
+    private int pressProgress = 0;
 
     void Start()
     {
-        GetComponent<Collider>().isTrigger = false;
-        player = GameObject.FindGameObjectWithTag("Player")?.transform;
+        if (!player)
+            player = GameObject.FindGameObjectWithTag("Player")?.transform;
+        if (player)
+        {
+            contamHook = player.GetComponent<ContamHook_YH>();
+            playerHealth = player.GetComponent<PlayerHealth_YH>();
+        }
     }
 
     void Update()
     {
-        if (!player || grabbing) return;
+        if (defeated || !player) return;
 
-        if (CanSeePlayer())
+        float dist = Vector3.Distance(transform.position, player.position);
+
+        // 감지 → 추적 시작
+        if (!isChasing && dist <= detectRange)
         {
-            Vector3 dir = (player.position - transform.position);
-            dir.y = 0;
-            float dist = dir.magnitude;
+            isChasing = true;
+            Debug.Log("[Cola] 추적 시작");
+        }
 
-            if (dist > grabRange)
-            {
-                transform.position += dir.normalized * speed * Time.deltaTime;
-                Face(player.position);
-            }
-            else
-            {
-                StartCoroutine(GrabRoutine());
-            }
+        // 추적 로직
+        if (isChasing && !isGrabbing)
+        {
+            transform.LookAt(player.position);
+            transform.position = Vector3.MoveTowards(transform.position, player.position, chaseSpeed * Time.deltaTime);
+        }
+
+        // 붙잡기 조건
+        if (isChasing && dist <= grabRange && !isGrabbing)
+        {
+            StartCoroutine(GrabSequence());
         }
     }
 
-    bool CanSeePlayer()
+    IEnumerator GrabSequence()
     {
-        Vector3 eye = transform.position + Vector3.up * 1.6f;
-        Vector3 toP = player.position - eye;
-        if (toP.magnitude > viewDistance) return false;
-        if (Vector3.Angle(transform.forward, toP.normalized) > viewAngle * 0.5f) return false;
+        isGrabbing = true;
+        Debug.Log("[Cola] 붙잡음! QTE 시작 (스페이스 연타)");
 
-        if (Physics.Raycast(eye, toP.normalized, out RaycastHit hit, viewDistance, ~0, QueryTriggerInteraction.Ignore))
-            return hit.transform.CompareTag("Player");
-        return false;
-    }
+        pressProgress = 0;
+        float timer = grabDuration;
 
-    void Face(Vector3 pos)
-    {
-        Vector3 dir = pos - transform.position; dir.y = 0;
-        if (dir.sqrMagnitude < 0.001f) return;
-        var look = Quaternion.LookRotation(dir);
-        transform.rotation = Quaternion.Slerp(transform.rotation, look, Time.deltaTime * 8f);
-    }
-
-    IEnumerator GrabRoutine()
-    {
-        grabbing = true;
-        Debug.Log("🥤 [콜라 인간] 플레이어를 붙잡았다! (E 연타로 탈출, 멘토스 사용 시 즉시 퇴치)");
-
-        // 멘토스 즉시 퇴치 체크
-        var hotbar = player.GetComponentInChildren<Hotbar>();
-        if (hotbar && hotbar.SelectedIs(mentosItemId))
+        while (timer > 0f)
         {
-            hotbar.RemoveFromSelected(1);
-            Debug.Log("🥤 [콜라 인간] 멘토스 반응! 즉시 분해됨");
-            Destroy(gameObject);
-            yield break;
-        }
-
-        int count = 0;
-        float t = 0f;
-        while (t < grabDuration)
-        {
-            t += Time.deltaTime;
-            if (Input.GetKeyDown(mashKey)) count++;
-
-            if (count >= mashCountToEscape)
+            if (Input.GetKeyDown(qteKey))
             {
-                Debug.Log("🥤 [콜라 인간] 탈출 성공!");
-                grabbing = false;
-                yield break;
+                pressProgress++;
+                Debug.Log($"[Cola] QTE 진행 {pressProgress}/{qtePressCount}");
+                if (pressProgress >= qtePressCount)
+                {
+                    Debug.Log("[Cola] 탈출 성공!");
+                    isGrabbing = false;
+                    yield break;
+                }
             }
+
+            timer -= Time.deltaTime;
             yield return null;
         }
 
-        // 실패 → 오염/체력 처리(지금은 오염만)
-        var contam = player.GetComponent<Contamination>();
-        if (contam) contam.Add(contamOnFail);
-        Debug.Log("🥤 [콜라 인간] 탈출 실패 → 오염 상승/피해");
-
-        grabbing = false;
+        // 실패 시
+        Debug.Log("[Cola] 탈출 실패 → 오염+, 체력-");
+        contamHook?.AddTemp(10f);
+        playerHealth?.TakeDamage(10f);
+        isGrabbing = false;
     }
+
+    public void OnMentosUsed()
+    {
+        if (defeated) return;
+        defeated = true;
+        Debug.Log("[Cola] 멘토스 반응 → 퇴치!");
+        Destroy(gameObject, 0.5f);
+    }
+
+    public void OnHitByMentos(float dmg)
+    {
+        Debug.Log($"[ColaGrabber] 멘토스에 의해 피해! {dmg} 데미지");
+        Destroy(gameObject); // 임시로 즉시 제거 (이후 애니메이션/이펙트로 교체 가능)
+    }
+
 }

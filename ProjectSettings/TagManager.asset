@@ -5,11 +5,12 @@ TagManager:
   serializedVersion: 3
   tags:
   - UIRoot
+  - UVEmitter
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - UVEmitter
   - Water
   - UI
   - UVOnly

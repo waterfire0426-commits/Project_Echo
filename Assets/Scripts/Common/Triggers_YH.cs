@@ -19,4 +19,7 @@ public static class TRG
     public const string ACT2_START          = "act2_start";
 
     public const string BLOCKED_BY_WATER    = "blocked_by_water";
+
+    public const string MENTOS_PICKUP = "mentos_pickup";
+
 }
