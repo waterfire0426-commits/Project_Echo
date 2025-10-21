@@ -1204,6 +1204,7 @@ MonoBehaviour:
   puzzle1Done: 0
   puzzle2Done: 0
   puzzle3Done: 0
+  contaminationManager: {fileID: 1974168196}
 --- !u!4 &286399960
 Transform:
   m_ObjectHideFlags: 0
