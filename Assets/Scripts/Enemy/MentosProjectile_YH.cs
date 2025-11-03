@@ -2,25 +2,21 @@ using UnityEngine;
 
 public class MentosProjectile_YH : MonoBehaviour
 {
-    [Header("Life Settings")]
     public float lifeTime = 5f;
-    public float damage = 50f;
 
     void Start()
     {
+        Destroy(gameObject, lifeTime);
     }
 
-    void OnCollisionEnter(Collision collision)
+    void OnCollisionEnter(Collision col)
     {
-        // 콜라 괴물 피격 처리
-        var cola = collision.collider.GetComponent<ColaGrabber_YH>();
-        if (cola)
+        if (col.gameObject.CompareTag("ColaMonster"))
         {
-            Debug.Log("[ColaGrabber] 멘토스 피격 감지!");
-            cola.OnHitByMentos(damage);
+            Debug.Log("[멘토스] 콜라 괴물 명중 → 제거!");
+            Destroy(col.gameObject); // 괴물 삭제
         }
 
-        // 충돌 즉시 멘토스 삭제
-        Destroy(gameObject);
+        Destroy(gameObject); // 멘토스 삭제
     }
 }

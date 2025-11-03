@@ -15,6 +15,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         DataTerminal,
         MentosPickup, // 🟢 멘토스 줍기용
         Mentos,        // 🟢 멘토스 던지기용
+        PickupGeneral,
         None
     }
 
@@ -372,6 +373,9 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             hotbar.Add(pickupItem, addCount);
             Debug.Log($"[멘토스] {addCount}개 획득!");
         }
+
+        // 🟢 줍고 바로 던지는 현상 방지 (0.2초간 E키 무시)
+        interactor.GetComponent<ItemThrower_YH>()?.MarkRecentlyPicked();
 
         // 🟢 퀘스트 알림은 주석 처리 (자동 제거 방지)
         // QuestManager.Notify(TRG.MENTOS_PICKUP);

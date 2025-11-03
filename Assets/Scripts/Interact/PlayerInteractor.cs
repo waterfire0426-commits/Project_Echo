@@ -1,12 +1,13 @@
 using UnityEngine;
-using System; // Action
+using System;
+using System.Collections;
 
 public class PlayerInteractor : MonoBehaviour
 {
     [Header("Ray")]
     public float interactRange = 4.5f;
-    public LayerMask interactMask = ~0;                 // Everything
-    public bool includeTriggers = true;                 // 트리거도 맞추기
+    public LayerMask interactMask = ~0;
+    public bool includeTriggers = true;
     public bool debugLog = false;
 
     [Header("UI")]
@@ -16,6 +17,9 @@ public class PlayerInteractor : MonoBehaviour
     public static event Action<IInteractable> OnFocusChanged;
 
     IInteractable currentInteractable;
+
+    // 🔹 추가: 현재 상호작용 중 여부
+    public static bool isInteracting = false;
 
     void Start()
     {
@@ -30,16 +34,24 @@ public class PlayerInteractor : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.E))
         {
-            if (currentInteractable != null) // ★ null 비교!
+            if (currentInteractable != null)
             {
                 if (debugLog) Debug.Log("[Interactor] E → Interact() 호출");
-                currentInteractable.Interact(gameObject);
+                StartCoroutine(HandleInteract());
             }
             else if (debugLog)
             {
                 Debug.LogWarning("[Interactor] 조준 대상 없음");
             }
         }
+    }
+
+    IEnumerator HandleInteract()
+    {
+        isInteracting = true;               // 🔹 플래그 켜기
+        currentInteractable.Interact(gameObject);
+        yield return null;                  // 한 프레임 기다리기
+        isInteracting = false;              // 🔹 다음 프레임에 자동 해제
     }
 
     void CheckForInteractable()
@@ -51,35 +63,33 @@ public class PlayerInteractor : MonoBehaviour
 
         if (Physics.Raycast(ray, out RaycastHit hit, interactRange, interactMask, qti))
         {
-            // 콜라이더가 자식이고 스크립트가 부모일 수도 있으니 부모까지 탐색
             newInteractable = hit.collider.GetComponentInParent<IInteractable>();
 
-            #if UNITY_EDITOR
+#if UNITY_EDITOR
             if (debugLog)
                 Debug.Log($"[Interactor] Hit: {hit.collider.name} (Layer={LayerMask.LayerToName(hit.collider.gameObject.layer)})"
                           + (newInteractable != null ? " -> IInteractable OK" : " -> IInteractable 없음"));
             Debug.DrawRay(ray.origin, ray.direction * hit.distance, Color.green);
-            #endif
+#endif
         }
         else
         {
-            #if UNITY_EDITOR
+#if UNITY_EDITOR
             Debug.DrawRay(ray.origin, ray.direction * interactRange, Color.red);
-            #endif
+#endif
         }
 
-        // 대상이 바뀌었으면 포커스 콜백 처리
         if (newInteractable != currentInteractable)
         {
             if (currentInteractable != null) currentInteractable.OnUnfocus();
-            if (newInteractable   != null) newInteractable.OnFocus();
+            if (newInteractable != null) newInteractable.OnFocus();
 
             currentInteractable = newInteractable;
             OnFocusChanged?.Invoke(newInteractable);
         }
 
-        // 크로스헤어 갱신 (bool 요구하므로 null 비교!)
-        if (crosshair != null) crosshair.SetActive(currentInteractable != null);
+        if (crosshair != null)
+            crosshair.SetActive(currentInteractable != null);
     }
 
     void OnDrawGizmosSelected()
@@ -88,7 +98,7 @@ public class PlayerInteractor : MonoBehaviour
         {
             Gizmos.color = Color.cyan;
             Gizmos.DrawLine(Camera.main.transform.position,
-                            Camera.main.transform.position + Camera.main.transform.forward * interactRange);
+                Camera.main.transform.position + Camera.main.transform.forward * interactRange);
         }
     }
 }

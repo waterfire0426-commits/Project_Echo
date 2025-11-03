@@ -109,4 +109,15 @@ public class ColaGrabber_YH : MonoBehaviour
         Destroy(gameObject); // 임시로 즉시 제거 (이후 애니메이션/이펙트로 교체 가능)
     }
 
+    void OnCollisionEnter(Collision col)
+    {
+        if (col.gameObject.CompareTag("Mentos"))
+        {
+            Debug.Log("[Cola] 멘토스에 맞음 → 퇴치!");
+            Destroy(gameObject); // 콜라 괴물 제거
+            Destroy(col.gameObject); // 멘토스도 제거
+        }
+    }
+
+
 }
