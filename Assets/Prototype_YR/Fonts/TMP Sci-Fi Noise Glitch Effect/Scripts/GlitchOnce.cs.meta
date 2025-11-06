@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 9fb31e147c3d6af46a8ae51f3df1906f
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 262837
+  packageName: TextMeshPro Sci-Fi Noise Glitch Effect
+  packageVersion: 1.0
+  assetPath: Assets/ClearSky Studio/TMP Sci-Fi Noise Glitch Effect/Scripts/GlitchOnce.cs
+  uploadId: 701595

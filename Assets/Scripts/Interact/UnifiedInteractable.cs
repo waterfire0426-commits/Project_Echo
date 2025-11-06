@@ -49,10 +49,6 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
     public UnityEvent onMiniGameFinished;        // ✅ 핵심: 완료 시점 기준
     private bool miniGameFinished = false;
 
-    //다운로드 UI 추가_YR
-    // [Header("Download UI")]
-    // public DownloadUIManager downloadManager;  // 인스펙터에서 연결
-
     // === IInteractable ===
     public void OnFocus() { }
     public void OnUnfocus() { }
@@ -241,16 +237,6 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
     void DoDataTerminal(GameObject interactor)
     {
         if (miniGameFinished) { Debug.Log("[단말] 이미 다운로드 완료"); return; }
-        // 이 부분 추가_YR
-        // if (downloadManager == null) 
-        // { 
-        //     Debug.LogWarning("[단말] DownloadUIManager 미지정!"); 
-        //     return; 
-        // }
-        // downloadManager.StartDownload();
-        // miniGameFinished = true;
-        // Debug.Log("[단말] 다운로드 시작!");
-        //
         
         if (!miniGamePrefab) { Debug.LogWarning("[단말] miniGamePrefab 미지정"); return; }
 
@@ -281,7 +267,7 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             if (miniGameFinished) return;
             miniGameFinished = true;
 
-            Quest_YH.Notify("data_downloaded");
+            //Quest_YH.Notify("data_downloaded");
             onMiniGameFinished?.Invoke(); // 여기다 타임라인 Play, 오염 4단계 연결해 두면 됨
             onMiniGameClosed?.Invoke();   // 🔓 입력/커서 복구(외부에서 연결)
             Debug.Log("[단말] 데이터 다운로드 완료(게이지 100%)");

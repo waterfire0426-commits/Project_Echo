@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: f9f998a68d3e094418749364a1f05b81
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures: []
+  nonModifiableTextures: []
+  preprocessorOverride: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 262837
+  packageName: TextMeshPro Sci-Fi Noise Glitch Effect
+  packageVersion: 1.0
+  assetPath: Assets/ClearSky Studio/TMP Sci-Fi Noise Glitch Effect/Shaders/SciFi
+    Noise Glitch.shader
+  uploadId: 701595
