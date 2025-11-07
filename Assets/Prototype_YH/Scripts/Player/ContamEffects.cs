@@ -11,9 +11,9 @@ public class ContamEffects : MonoBehaviour
     public AudioClip[] hallucinations;       // 환청 클립들
 
     [Header("Darkness")]
-    [Range(0,1)] public float stage1Dark = 0.15f;
-    [Range(0,1)] public float stage2Dark = 0.35f;
-    [Range(0,1)] public float stage4Dark = 0.6f;
+    [Range(0, 1)] public float stage1Dark = 0.15f;
+    [Range(0, 1)] public float stage2Dark = 0.35f;
+    [Range(0, 1)] public float stage4Dark = 0.6f;
     public float flickerAmp = 0.15f;         // 4단계 깜빡임 강도
     public float flickerSpeed = 8f;
 
@@ -25,8 +25,8 @@ public class ContamEffects : MonoBehaviour
     public GameObject[] stage3Actors;        // 3단계부터 활성화
     public GameObject[] stage4Actors;        // 4단계부터 활성화
 
-    int currentStage = 0;
-    float sfxTimer;
+    private int currentStage = 0;
+    private float sfxTimer;
 
     void Awake()
     {
@@ -42,7 +42,7 @@ public class ContamEffects : MonoBehaviour
 
     void Update()
     {
-        // 어둡기 기본값
+        // 화면 어두움 정도 계산
         float baseDark = 0f;
         switch (currentStage)
         {
@@ -53,20 +53,22 @@ public class ContamEffects : MonoBehaviour
             default: baseDark = 0f; break;
         }
 
-        // 4단계 깜빡임
+        // 4단계 이상: 깜빡임 효과
         if (currentStage >= 4)
         {
             float flicker = (Mathf.PerlinNoise(Time.time * flickerSpeed, 0f) * 2f - 1f) * flickerAmp;
             baseDark = Mathf.Clamp01(baseDark + flicker);
         }
 
-        if (darkOverlay) {
+        // 화면 어둡게 반영
+        if (darkOverlay)
+        {
             var c = darkOverlay.color;
             c.a = Mathf.Lerp(c.a, baseDark, Time.deltaTime * 8f);
             darkOverlay.color = c;
         }
 
-        // 환청
+        // 환청 효과
         if (currentStage >= 2 && sfx && hallucinations != null && hallucinations.Length > 0)
         {
             sfxTimer -= Time.deltaTime;
@@ -78,36 +80,65 @@ public class ContamEffects : MonoBehaviour
         }
     }
 
+    // 오염 단계 변경 시 호출
     void OnStageChanged(int s)
     {
         currentStage = s;
 
-        // 3단계: 고정형 괴물 활성화
+        // 로그 출력 (단계 안내)
+        Debug.Log($"[오염도] {s}단계 진입");
+
+        // 3단계 이상: 고정형 괴물 등장
         if (stage3Actors != null)
-            foreach (var go in stage3Actors) if (go) go.SetActive(s >= 3);
+            foreach (var go in stage3Actors)
+                if (go) go.SetActive(s >= 3);
 
-        // 4단계: 더 많이 활성화
+        // 4단계 이상: 추가 괴물 활성화
         if (stage4Actors != null)
-            foreach (var go in stage4Actors) if (go) go.SetActive(s >= 4);
+            foreach (var go in stage4Actors)
+                if (go) go.SetActive(s >= 4);
 
-        // 5단계: 사망
-        if (s >= 5) StartCoroutine(DeathRoutine());
+        // 각 단계별 로그
+        switch (s)
+        {
+            case 1:
+                Debug.Log("[시각효과] 화면 약간 어두워짐");
+                break;
+            case 2:
+                Debug.Log("[사운드] 환청, 비명소리 발생");
+                break;
+            case 3:
+                Debug.Log("[스폰] 고정형 괴물 및 면발 촉수 등장");
+                break;
+            case 4:
+                Debug.Log("[시각효과] 화면 깜빡임 강화, 괴물 다수 등장");
+                break;
+            case 5:
+                Debug.Log("[사망] 플레이어 사망, 게임오버 처리 필요");
+                StartCoroutine(DeathRoutine());
+                break;
+        }
     }
 
     IEnumerator DeathRoutine()
     {
-        // 간단한 페이드 아웃
+        Debug.Log("[오염] 5단계 도달 → 사망 루틴 시작");
+
+        // 간단한 페이드아웃 처리 (시각적 대체)
         float t = 0f;
         while (t < 0.8f)
         {
             t += Time.deltaTime;
-            if (darkOverlay) {
-                var c = darkOverlay.color; c.a = Mathf.Lerp(c.a, 1f, t/0.8f);
+            if (darkOverlay)
+            {
+                var c = darkOverlay.color;
+                c.a = Mathf.Lerp(c.a, 1f, t / 0.8f);
                 darkOverlay.color = c;
             }
             yield return null;
         }
-        // TODO: 실제 게임오버 처리 (씬 리로드/메뉴 호출/플레이어 체력 0 등)
-        Debug.Log("[오염] 5단계 도달 → 사망");
+
+        Debug.Log("[오염] 사망 루틴 완료 → 게임오버 처리 예정 (씬 리로드 등)");
+        // TODO: 실제 게임오버 처리 추가 예정
     }
 }

@@ -6,6 +6,9 @@ TagManager:
   tags:
   - UIRoot
   - UVEmitter
+  - Mentos
+  - ColaMonster
+  - Interactable
   layers:
   - Default
   - TransparentFX

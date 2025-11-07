@@ -5,7 +5,7 @@ public class Contamination : MonoBehaviour
 {
     [Header("Value (0~100) → Stage")]
     [Range(0,100)] public float value = 0f;
-    public float[] stageThresholds = { 0, 10, 25, 50, 75, 100 }; // 0,1,2,3,4,5
+    public float[] stageThresholds = { 0, 10, 25, 50, 75, 100 }; // 0~5단계 기준
 
     [Header("Natural Change (optional)")]
     public float passiveIncreasePerSec = 0f;
@@ -29,8 +29,17 @@ public class Contamination : MonoBehaviour
         value = Mathf.Clamp(value + amount, 0f, 100f);
         UpdateStage();
 
-        if (Stage != prevStage) onStageChanged?.Invoke(Stage);
-        if (Stage >= 5) onDeath?.Invoke();
+        if (Stage != prevStage)
+        {
+            Debug.Log($"[오염도] 단계 변경: {prevStage} → {Stage}");
+            onStageChanged?.Invoke(Stage);
+        }
+
+        if (Stage >= 5)
+        {
+            Debug.Log("[오염] 5단계 도달 → 사망 처리 필요!");
+            onDeath?.Invoke();
+        }
     }
 
     public void Set(float v)
@@ -47,7 +56,7 @@ public class Contamination : MonoBehaviour
         Stage = Mathf.Clamp(s, 0, 5);
     }
 
-    // ✅ 원하는 단계로 바로 끌어올리기(예: 4단계)
+    // 원하는 단계로 바로 끌어올리기 (예: 4단계)
     public void RaiseToStage(int target)
     {
         target = Mathf.Clamp(target, 0, 5);
@@ -60,11 +69,15 @@ public class Contamination : MonoBehaviour
             int prevStage = Stage;
             UpdateStage();
             if (Stage != prevStage) onStageChanged?.Invoke(Stage);
-            if (Stage >= 5) onDeath?.Invoke();
+            if (Stage >= 5)
+            {
+                Debug.Log("[오염] 5단계 도달 → 사망 처리 필요!");
+                onDeath?.Invoke();
+            }
         }
     }
 
-    // 편의 API
+    // 편의 함수
     public void AddPercent(float percent01) => Add(percent01 * 100f);
     public void ReducePercent(float percent01) => Add(-percent01 * 100f);
 }

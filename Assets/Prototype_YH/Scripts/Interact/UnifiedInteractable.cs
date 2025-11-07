@@ -6,23 +6,24 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
 {
     public enum Kind
     {
-        FuelPickup,
-        Generator,
-        PowerSwitch,
-        HazmatEquip,
-        Door,
-        EggShell,
-        DataTerminal,
-        MentosPickup, // 🟢 멘토스 줍기용
-        Mentos,        // 🟢 멘토스 던지기용
-        PickupGeneral,
-        None
+        None = -1,
+        FuelPickup = 0,
+        Generator = 1,
+        PowerSwitch = 2,
+        HazmatEquip = 3,
+        Door = 4,
+        EggShell = 5,
+        DataTerminal = 6,
+        MentosPickup = 7,
+        Mentos = 8,
+        PurifyItem = 9,
+        Chopsticks = 10,
+        PickupGeneral = 11
     }
 
     [Header("Object Type")]
     public Kind kind = Kind.None;
 
-    // 🔒 자동 상호작용 방지 플래그
     private bool hasAutoTriggered = false;
 
     [Header("Download (Headless)")]
@@ -76,9 +77,10 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
 
     public void Interact(GameObject interactor)
     {
-        // 🔒 자동 호출 방지 (플레이어나 충돌로 인한 중복 실행 차단)
         if (hasAutoTriggered) return;
         hasAutoTriggered = true;
+
+        Debug.Log($"[DEBUG] {gameObject.name} 상호작용 실행됨! kind={kind}");
 
         switch (kind)
         {
@@ -91,6 +93,8 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             case Kind.DataTerminal: DoDataTerminal(interactor); break;
             case Kind.Mentos:       DoMentos(interactor);       break;
             case Kind.MentosPickup: DoMentosPickup(interactor); break;
+            case Kind.PurifyItem:   DoPurify(interactor);       break;
+            case Kind.Chopsticks:   DoChopsticks(interactor);   break;
             default:
                 Debug.LogWarning("[상호작용] 타입이 설정되지 않았습니다.");
                 break;
@@ -108,7 +112,8 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
         inv.hasFuel = true;
 
         var hotbar = interactor.GetComponentInChildren<Hotbar>();
-        if (hotbar && pickupItem) hotbar.Add(pickupItem, pickupAmount);
+        if (hotbar && pickupItem)
+            hotbar.Add(pickupItem, pickupAmount);
 
         interactor.GetComponent<ContamHook_YH>()?.AddTemp(+10f);
         QuestManager.Notify(TRG.FUEL_PICKUP);
@@ -374,12 +379,52 @@ public class UnifiedInteractable : MonoBehaviour, IInteractable
             Debug.Log($"[멘토스] {addCount}개 획득!");
         }
 
-        // 🟢 줍고 바로 던지는 현상 방지 (0.2초간 E키 무시)
         interactor.GetComponent<ItemThrower_YH>()?.MarkRecentlyPicked();
+        Destroy(gameObject);
+    }
 
-        // 🟢 퀘스트 알림은 주석 처리 (자동 제거 방지)
-        // QuestManager.Notify(TRG.MENTOS_PICKUP);
+    // -------------------------------
+    // 정화 아이템 (산소키트)
+    // -------------------------------
+    void DoPurify(GameObject interactor)
+    {
+        var hook = interactor.GetComponent<ContamHook_YH>();
+        if (hook == null)
+        {
+            Debug.LogWarning("[정화아이템] ContamHook_YH를 찾을 수 없습니다.");
+            return;
+        }
 
+        float purifyAmount = -20f;
+        hook.AddTemp(purifyAmount);
+        Debug.Log($"🌿 [정화아이템] 오염도 {Mathf.Abs(purifyAmount)} 만큼 정화됨!");
+        Destroy(gameObject);
+    }
+
+    // -------------------------------
+    // 젓가락 아이템
+    // -------------------------------
+    void DoChopsticks(GameObject interactor)
+    {
+        var inv = interactor.GetComponent<PlayerInventory>();
+        if (!inv) { Debug.LogWarning("[젓가락] PlayerInventory 컴포넌트가 없습니다."); return; }
+
+        var hotbar = interactor.GetComponentInChildren<Hotbar>();
+        if (hotbar && pickupItem)
+        {
+            hotbar.Add(pickupItem, pickupAmount);
+            Debug.Log($"🥢 [젓가락] {pickupAmount}개 획득!");
+        }
+
+        // 오염도 상승 추가
+        var contam = interactor.GetComponent<ContamHook_YH>();
+        if (contam)
+        {
+            contam.AddTemp(+10f);
+            Debug.Log("[젓가락] 손에 묻은 찌꺼기로 오염도 상승!");
+        }
+
+        interactor.GetComponent<ItemThrower_YH>()?.MarkRecentlyPicked();
         Destroy(gameObject);
     }
 }
