@@ -1,19 +1,136 @@
+// using UnityEngine;
+
+// public class FloatRemovalMiniGame : MonoBehaviour
+// {
+//     [Header("UI References")]
+//     public RectTransform marker;       // 움직이는 마커
+//     public RectTransform targetZone;   // 목표 영역 이미지
+//     public RectTransform gauge;        // 게이지 배경
+//     public GameObject uiRoot;          // UI 루트(Canvas나 Panel)
+
+//     [Header("Game Settings")]
+//     public float speed = 2f;           // 마커 이동 속도
+//     public float successGoal = 5f;     // 목표 영역 유지 시간(초)
+
+//     [Header("Puzzle Link")]
+//     public PuzzleTrigger puzzleTrigger; // 미니게임 성공 시 완료 처리할 퍼즐
+
+//     private float currentPos = 0.5f;   
+//     private float successTime = 0f;
+//     private float targetZoneMin;
+//     private float targetZoneMax;
+//     private bool isMiniGameActive = false;
+
+//     private MiniGameBridge bridge;
+
+//     void Start()
+//     {
+//         bridge = GetComponent<MiniGameBridge>();
+//         if (!uiRoot) Debug.LogWarning("[FloatRemovalMiniGame] uiRoot 미지정!");
+//         uiRoot.SetActive(false); // 게임 시작 시 UI 숨김
+
+//         // TargetZone 위치를 0~1 비율로 변환
+//         float gaugeHeight = gauge.rect.height;
+//         float zoneYMin = targetZone.anchoredPosition.y - targetZone.rect.height / 2f;
+//         float zoneYMax = targetZone.anchoredPosition.y + targetZone.rect.height / 2f;
+
+//         targetZoneMin = Mathf.Clamp01((zoneYMin / gaugeHeight) + 0.5f);
+//         targetZoneMax = Mathf.Clamp01((zoneYMax / gaugeHeight) + 0.5f);
+//     }
+
+//     void Update()
+//     {
+//         if (!isMiniGameActive) return;
+
+//         // R키로 마커 이동
+//         currentPos += Input.GetKey(KeyCode.R) ? Time.deltaTime * speed : -Time.deltaTime * speed;
+
+//         // 마커가 게이지 밖으로 나가지 않도록 클램프
+//         float gaugeHeight = gauge.rect.height;
+//         float markerHalfHeight = marker.rect.height / 2f;
+//         float minPos = markerHalfHeight / gaugeHeight;
+//         float maxPos = 1f - minPos;
+//         currentPos = Mathf.Clamp(currentPos, minPos, maxPos);
+
+//         // 마커 위치 적용
+//         marker.anchoredPosition = new Vector2(0, (currentPos - 0.5f) * gaugeHeight);
+
+//         // 목표 영역 유지 시간 계산
+//         if (currentPos >= targetZoneMin && currentPos <= targetZoneMax)
+//             successTime += Time.deltaTime;
+//         else
+//             successTime = Mathf.Max(0, successTime - Time.deltaTime);
+
+//         // 진행률 브로드캐스트
+//         float progress = successTime / successGoal;
+//         bridge?.UpdateProgress(progress);
+
+//         // 성공 시 종료 + 퍼즐 완료 처리
+//         if (progress >= 1f)
+//         {
+//             bridge?.Finish();
+
+//             if (puzzleTrigger != null)
+//                 puzzleTrigger.CompletePuzzle();
+
+//             EndMiniGame();
+//             Debug.Log("미니게임 성공! 퍼즐 완료 처리됨");
+//         }
+//     }
+
+//     // 미니게임 시작
+//     public void StartMiniGame()
+//     {
+//         isMiniGameActive = true;
+//         uiRoot.SetActive(true);
+//         currentPos = 0.5f;
+//         successTime = 0f;
+
+//         // 🎯 마우스 커서 활성화 & 카메라 회전 잠금
+//         Cursor.visible = true;
+//         Cursor.lockState = CursorLockMode.None;
+
+//         // 필요하다면 플레이어 카메라 비활성화
+//         var fpCam = FindObjectOfType<FPCamera>();
+//         if (fpCam != null)
+//             fpCam.enabled = false;
+//     }
+
+//     // 미니게임 종료
+//     public void EndMiniGame()
+//     {
+//         isMiniGameActive = false;
+//         uiRoot.SetActive(false);
+//         currentPos = 0.5f;
+//         successTime = 0f;
+
+//         Cursor.visible = false;
+//         Cursor.lockState = CursorLockMode.Locked;
+
+//         // 카메라 다시 활성화
+//         var fpCam = FindObjectOfType<FPCamera>();
+//         if (fpCam != null)
+//             fpCam.enabled = true;
+//     }
+// }
+
 using UnityEngine;
+using System.Collections;
 
 public class FloatRemovalMiniGame : MonoBehaviour
 {
     [Header("UI References")]
     public RectTransform marker;       // 움직이는 마커
-    public RectTransform targetZone;   // 목표 영역 이미지
+    public RectTransform targetZone;   // 목표 영역
     public RectTransform gauge;        // 게이지 배경
-    public GameObject uiRoot;          // UI 루트(Canvas나 Panel)
+    public GameObject uiRoot;          // UI 루트(Canvas 등)
 
     [Header("Game Settings")]
-    public float speed = 2f;           // 마커 이동 속도
+    public float markerSpeed = 2f;     // 마커 이동 속도
     public float successGoal = 5f;     // 목표 영역 유지 시간(초)
 
     [Header("Puzzle Link")]
-    public PuzzleTrigger puzzleTrigger; // 미니게임 성공 시 완료 처리할 퍼즐
+    public PuzzleTrigger puzzleTrigger; // 미니게임 성공 시 퍼즐 완료
 
     private float currentPos = 0.5f;   
     private float successTime = 0f;
@@ -27,45 +144,38 @@ public class FloatRemovalMiniGame : MonoBehaviour
     {
         bridge = GetComponent<MiniGameBridge>();
         if (!uiRoot) Debug.LogWarning("[FloatRemovalMiniGame] uiRoot 미지정!");
-        uiRoot.SetActive(false); // 게임 시작 시 UI 숨김
-
-        // TargetZone 위치를 0~1 비율로 변환
-        float gaugeHeight = gauge.rect.height;
-        float zoneYMin = targetZone.anchoredPosition.y - targetZone.rect.height / 2f;
-        float zoneYMax = targetZone.anchoredPosition.y + targetZone.rect.height / 2f;
-
-        targetZoneMin = Mathf.Clamp01((zoneYMin / gaugeHeight) + 0.5f);
-        targetZoneMax = Mathf.Clamp01((zoneYMax / gaugeHeight) + 0.5f);
+        uiRoot.SetActive(false); // 게임 시작 시 UI 비활성화
     }
 
     void Update()
     {
         if (!isMiniGameActive) return;
 
-        // R키로 마커 이동
-        currentPos += Input.GetKey(KeyCode.R) ? Time.deltaTime * speed : -Time.deltaTime * speed;
+        // 🔵 마커 이동 (R키로 상승 / 아니면 하강)
+        currentPos += Input.GetKey(KeyCode.R) ? Time.deltaTime * markerSpeed
+                                              : -Time.deltaTime * markerSpeed;
 
-        // 마커가 게이지 밖으로 나가지 않도록 클램프
+        // 마커가 범위 밖으로 나가지 않게 클램프
         float gaugeHeight = gauge.rect.height;
-        float markerHalfHeight = marker.rect.height / 2f;
-        float minPos = markerHalfHeight / gaugeHeight;
+        float markerHalf = marker.rect.height / 2f;
+        float minPos = markerHalf / gaugeHeight;
         float maxPos = 1f - minPos;
         currentPos = Mathf.Clamp(currentPos, minPos, maxPos);
 
         // 마커 위치 적용
         marker.anchoredPosition = new Vector2(0, (currentPos - 0.5f) * gaugeHeight);
 
-        // 목표 영역 유지 시간 계산
+        // 🔵 목표 영역 안에 있는지 체크
         if (currentPos >= targetZoneMin && currentPos <= targetZoneMax)
             successTime += Time.deltaTime;
         else
-            successTime = Mathf.Max(0, successTime - Time.deltaTime);
+            successTime = Mathf.Max(0, successTime - Time.deltaTime * 0.5f);
 
-        // 진행률 브로드캐스트
+        // 진행 바 업데이트
         float progress = successTime / successGoal;
         bridge?.UpdateProgress(progress);
 
-        // 성공 시 종료 + 퍼즐 완료 처리
+        // 🔵 성공 조건 충족
         if (progress >= 1f)
         {
             bridge?.Finish();
@@ -74,33 +184,82 @@ public class FloatRemovalMiniGame : MonoBehaviour
                 puzzleTrigger.CompletePuzzle();
 
             EndMiniGame();
-            Debug.Log("미니게임 성공! 퍼즐 완료 처리됨");
+            Debug.Log("부유물 제거 성공!");
         }
     }
 
-    // 미니게임 시작
+    // ==========================================
+    //      🎯 목표 영역을 랜덤하게 움직이는 코루틴
+    // ==========================================
+    IEnumerator UpdateTargetZoneMovement()
+    {
+    float gaugeHeight = gauge.rect.height;
+    float zoneHalf = targetZone.rect.height / 2f;
+
+    while (true)
+    {
+        // 🔥 gauge 안에서 안전하게 들어갈 수 있는 70~100% 범위 계산
+        float minY = gaugeHeight * 0.7f + zoneHalf;
+        float maxY = gaugeHeight * 1.0f - zoneHalf;
+
+        // anchoredPosition 은 -gaugeHeight/2 ~ +gaugeHeight/2 기준
+        float randomPixelY = Random.Range(minY, maxY);
+        float anchoredY = randomPixelY - (gaugeHeight * 0.5f);
+
+        Vector2 targetPos = new Vector2(
+            targetZone.anchoredPosition.x,
+            anchoredY
+        );
+
+        Vector2 startPos = targetZone.anchoredPosition;
+        float t = 0f;
+
+        while (t < 1f)
+        {
+            t += Time.deltaTime * 1f;
+            targetZone.anchoredPosition = Vector2.Lerp(startPos, targetPos, t);
+            yield return null;
+        }
+
+        // targetZone 비율 업데이트
+        float zoneMinY = targetZone.anchoredPosition.y - zoneHalf;
+        float zoneMaxY = targetZone.anchoredPosition.y + zoneHalf;
+
+        targetZoneMin = Mathf.Clamp01((zoneMinY / gaugeHeight) + 0.5f);
+        targetZoneMax = Mathf.Clamp01((zoneMaxY / gaugeHeight) + 0.5f);
+
+        yield return new WaitForSeconds(Random.Range(0.5f, 2f));
+    }
+}
+
+    // ==========================================
+    //      🔵 미니게임 시작 / 종료
+    // ==========================================
     public void StartMiniGame()
     {
         isMiniGameActive = true;
         uiRoot.SetActive(true);
+
         currentPos = 0.5f;
         successTime = 0f;
 
-        // 🎯 마우스 커서 활성화 & 카메라 회전 잠금
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
 
-        // 필요하다면 플레이어 카메라 비활성화
+        // 카메라 동작 잠금
         var fpCam = FindObjectOfType<FPCamera>();
         if (fpCam != null)
             fpCam.enabled = false;
+
+        // 목표 영역 이동 시작
+        StartCoroutine(UpdateTargetZoneMovement());
     }
 
-    // 미니게임 종료
     public void EndMiniGame()
     {
         isMiniGameActive = false;
         uiRoot.SetActive(false);
+
         currentPos = 0.5f;
         successTime = 0f;
 
@@ -111,5 +270,9 @@ public class FloatRemovalMiniGame : MonoBehaviour
         var fpCam = FindObjectOfType<FPCamera>();
         if (fpCam != null)
             fpCam.enabled = true;
+
+        // 코루틴 정지
+        StopAllCoroutines();
     }
 }
+

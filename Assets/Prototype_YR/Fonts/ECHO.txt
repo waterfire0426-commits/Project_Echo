@@ -23,6 +23,8 @@ Objectives
 Speed: Low
 High
 123456789
+현재 속도
+목표 속도
 
 다운로드 중...
 
